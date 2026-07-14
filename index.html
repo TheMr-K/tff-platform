@@ -77,8 +77,24 @@
   .fresh{color:var(--green);}
   .pool-card.crypto .fresh{color:var(--amber);}
   .pool-card.yield .fresh{color:var(--blue);}
-  .pool-updated{font-size:10px;color:var(--text-dim);margin-top:6px;}
-  pre{white-space:pre-wrap;font-size:10px;color:#c9a875;margin-top:8px;opacity:.75;}
+  .pool-updated{font-size:10px;color:var(--text-dim);margin:6px 0 10px;}
+  .pool-line{font-size:11px;color:#e8d9b8;margin:4px 0;line-height:1.5;}
+  .pool-line .k{color:var(--text-dim);margin-right:6px;}
+  .pool-flag{font-size:10px;letter-spacing:1px;margin-top:8px;padding:4px 8px;border:1px solid;display:inline-block;}
+  .pool-flag.warn{color:var(--red);border-color:var(--red);}
+  .pool-flag.ok{color:var(--green);border-color:var(--green);}
+
+  .tach-card{padding:18px 20px 14px;}
+  .tach-graph{display:flex;gap:36px;align-items:flex-end;height:130px;padding-top:6px;justify-content:center;}
+  .tach-col{display:flex;flex-direction:column;gap:3px;width:64px;height:100%;justify-content:flex-end;}
+  .tach-seg{height:7px;background:#1c1508;border:1px solid #241c0c;}
+  .tach-seg.lit-options{background:var(--green);box-shadow:0 0 6px var(--green-glow);}
+  .tach-seg.lit-crypto{background:var(--amber);box-shadow:0 0 6px var(--amber-glow);}
+  .tach-seg.lit-yield{background:var(--blue);box-shadow:0 0 6px rgba(75,214,255,.5);}
+  .tach-labels{display:flex;gap:36px;margin-top:10px;justify-content:center;}
+  .tach-label-col{width:64px;text-align:center;font-size:10px;}
+  .tach-label-col .name{letter-spacing:1px;color:var(--text-dim);}
+  .tach-label-col .val{margin-top:3px;font-weight:600;font-size:12px;}
 
   .capital-card{padding:18px 20px;}
   .capital-total{font-size:13px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
@@ -162,6 +178,12 @@
     <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
   </div>
 
+  <div class="section-label">CAPITAL GAUGE</div>
+  <div class="crt-panel tach-card">
+    <div class="tach-graph" id="tach-graph"></div>
+    <div class="tach-labels" id="tach-labels"></div>
+  </div>
+
   <div class="section-label">CAPITAL ALLOCATION</div>
   <div class="crt-panel capital-card">
     <div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
@@ -183,6 +205,7 @@
   const SUPABASE_ANON_KEY = "sb_publishable_Sm5lhcYCs3KdSXWSGi4PmA_aCSf28fQ";
   const STALE_AFTER_MIN = 45;
   const LED_SEGMENTS = 40;
+  const TACH_SEGMENTS = 12;
 
   async function fetchTable(table) {
     const sep = table.includes("?") ? "&" : "?";
@@ -203,6 +226,10 @@
     return typeof v === "number" ? v : 0;
   }
 
+  function money(v) {
+    return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
   function renderMaster(snapshots) {
     const order = ["options", "crypto", "yield"];
     const values = order.map(pool => {
@@ -210,8 +237,7 @@
       return { pool, value: poolValue(row) };
     });
     const total = values.reduce((s, v) => s + v.value, 0);
-    document.getElementById("master-total").textContent =
-      "$" + total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    document.getElementById("master-total").textContent = money(total);
 
     const bar = document.getElementById("led-bar");
     bar.innerHTML = "";
@@ -230,11 +256,43 @@
     }
   }
 
+  function renderTach(snapshots) {
+    const order = ["options", "crypto", "yield"];
+    const values = order.map(pool => {
+      const row = snapshots.find(s => s.pool === pool);
+      return { pool, value: poolValue(row) };
+    });
+    const max = Math.max(...values.map(v => v.value), 1);
+
+    const graph = document.getElementById("tach-graph");
+    const labels = document.getElementById("tach-labels");
+    graph.innerHTML = "";
+    labels.innerHTML = "";
+
+    values.forEach(v => {
+      const litCount = Math.round((v.value / max) * TACH_SEGMENTS);
+      const col = document.createElement("div");
+      col.className = "tach-col";
+      for (let i = 0; i < TACH_SEGMENTS; i++) {
+        const seg = document.createElement("div");
+        seg.className = "tach-seg";
+        if (i < litCount) seg.classList.add(`lit-${v.pool}`);
+        col.appendChild(seg);
+      }
+      graph.appendChild(col);
+
+      const lbl = document.createElement("div");
+      lbl.className = "tach-label-col";
+      lbl.innerHTML = `<div class="name">${v.pool.toUpperCase()}</div><div class="val">${money(v.value)}</div>`;
+      labels.appendChild(lbl);
+    });
+  }
+
   function renderGauges(snapshots, watch) {
     const optionsRow = snapshots.find(s => s.pool === "options");
     const bp = optionsRow?.data?.buying_power;
     document.getElementById("gauge-bp").textContent =
-      typeof bp === "number" ? "$" + bp.toLocaleString() : "—";
+      typeof bp === "number" ? money(bp) : "—";
     document.getElementById("gauge-bp-bar").style.width =
       typeof bp === "number" ? Math.min((bp / 500) * 100, 100) + "%" : "0%";
 
@@ -264,6 +322,37 @@
     }
   }
 
+  function optionsSummary(data) {
+    const positions = data.open_positions || [];
+    const bp = typeof data.buying_power === "number" ? money(data.buying_power) : "—";
+    let html = `<div class="pool-line"><span class="k">Buying power:</span>${bp} · ${positions.length} open</div>`;
+    if (positions[0]) {
+      const p = positions[0];
+      const pnlColor = p.pnl_dollar >= 0 ? "var(--green)" : "var(--red)";
+      html += `<div class="pool-line"><span class="k">Top:</span>${p.ticker} ${p.strike} — <span style="color:${pnlColor}">${p.pnl_dollar >= 0 ? "+" : ""}$${p.pnl_dollar} (${p.pnl_pct}%)</span></div>`;
+      html += p.stop_loss_active
+        ? `<span class="pool-flag ok">STOP-LOSS ACTIVE</span>`
+        : `<span class="pool-flag warn">NO STOP-LOSS</span>`;
+    }
+    return html;
+  }
+
+  function cryptoSummary(data) {
+    const pct = typeof data.pct_deployed === "number" ? data.pct_deployed.toFixed(0) : "0";
+    const poolSize = data.pool_size ?? "—";
+    const assets = (data.positions || []).map(p => p.asset).join(" · ") || "none";
+    return `
+      <div class="pool-line"><span class="k">Deployed:</span>${pct}% of $${poolSize} pool</div>
+      <div class="pool-line"><span class="k">Holdings:</span>${assets}</div>
+      <div class="pool-line"><span class="k">Buying power:</span>${typeof data.buying_power === "number" ? money(data.buying_power) : "—"}</div>
+    `;
+  }
+
+  function yieldSummary(data) {
+    if (data.status) return `<div class="pool-line">Not yet funded — awaiting first allocation</div>`;
+    return `<div class="pool-line">${JSON.stringify(data)}</div>`;
+  }
+
   function renderPools(snapshots) {
     const grid = document.getElementById("pool-grid");
     grid.innerHTML = "";
@@ -280,11 +369,16 @@
       const age = minutesAgo(row.updated_at);
       const staleClass = age > STALE_AFTER_MIN ? "stale" : "fresh";
       const value = row.data.total_value ?? row.data.deployed ?? row.data.status ?? "—";
+      let summary = "";
+      if (pool === "options") summary = optionsSummary(row.data);
+      else if (pool === "crypto") summary = cryptoSummary(row.data);
+      else summary = yieldSummary(row.data);
+
       card.innerHTML = `
         <h2>${pool.toUpperCase()}</h2>
         <div class="pool-val ${staleClass}">${typeof value === "number" ? "$" + value.toLocaleString() : value}</div>
         <div class="pool-updated">source: ${row.source} · synced ${age.toFixed(0)}m ago</div>
-        <pre>${JSON.stringify(row.data, null, 2)}</pre>
+        ${summary}
       `;
       grid.appendChild(card);
     }
@@ -297,8 +391,7 @@
       return { pool, value: poolValue(row) };
     });
     const total = values.reduce((s, v) => s + v.value, 0);
-    document.getElementById("capital-total-val").textContent =
-      "$" + total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    document.getElementById("capital-total-val").textContent = money(total);
 
     const bars = document.getElementById("capital-bars");
     bars.innerHTML = values.map(v => {
@@ -307,7 +400,7 @@
         <div class="cap-row">
           <div class="cap-label ${v.pool}">${v.pool.toUpperCase()}</div>
           <div class="cap-bar-track"><div class="cap-bar-fill ${v.pool}" style="width:${pct.toFixed(1)}%"></div></div>
-          <div class="cap-value">$${v.value.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+          <div class="cap-value">${money(v.value)}</div>
           <div class="cap-pct">${pct.toFixed(0)}%</div>
         </div>
       `;
@@ -329,7 +422,14 @@
 
   function renderActions(actions) {
     const wrap = document.getElementById("actions");
-    wrap.innerHTML = actions
+    const seen = new Set();
+    const deduped = actions.filter(a => {
+      const key = a.pool + a.message;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    wrap.innerHTML = deduped
       .filter(a => a.status === "open")
       .map(a => `
         <div class="action-row">
@@ -350,6 +450,7 @@
       renderMaster(snapshots);
       renderGauges(snapshots, watch);
       renderPools(snapshots);
+      renderTach(snapshots);
       renderCapital(snapshots);
       renderActions(actions);
       renderWatch(watch);
