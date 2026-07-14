@@ -1,0 +1,43 @@
+name: TFF Pool Poller
+
+# Crypto and Yield pools have real, official APIs, so this bot genuinely
+# runs unattended. Options pool is intentionally NOT here — it can only be
+# refreshed from an active Claude/Robinhood-MCP session (see
+# scripts/push-options-snapshot.js).
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes, all day — trim to market hours if you prefer
+  workflow_dispatch: {}       # lets you trigger a manual run from the Actions tab
+
+jobs:
+  poll-crypto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: node scripts/poll-crypto.js
+        env:
+          RH_CRYPTO_API_KEY: ${{ secrets.RH_CRYPTO_API_KEY }}
+          RH_CRYPTO_PRIVATE_KEY_B64: ${{ secrets.RH_CRYPTO_PRIVATE_KEY_B64 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+  poll-yield:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: node scripts/poll-yield.js
+        env:
+          COINBASE_API_KEY: ${{ secrets.COINBASE_API_KEY }}
+          COINBASE_API_SECRET: ${{ secrets.COINBASE_API_SECRET }}
+          AAVE_WALLET_ADDRESS: ${{ secrets.AAVE_WALLET_ADDRESS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
