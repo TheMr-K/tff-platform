@@ -9,6 +9,7 @@
     --bg:#060907; --panel:#0b120d; --panel-border:#1c3324;
     --green:#39ff6a; --green-glow:rgba(57,255,106,0.35);
     --amber:#ff9d1f; --amber-glow:rgba(255,157,31,0.3);
+    --blue:#4bd6ff;
     --red:#ff4b4b; --text-dim:#5f8a6c;
   }
   *{box-sizing:border-box;}
@@ -22,18 +23,39 @@
   .sync-status{font-size:10px;color:var(--text-dim);text-align:right;letter-spacing:1px;}
   .sync-status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 1.8s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-  .pool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px;}
+
+  .section-label{font-size:11px;letter-spacing:3px;color:var(--amber);margin:26px 0 10px;display:flex;align-items:center;gap:10px;}
+  .section-label::after{content:"";flex:1;height:1px;background:var(--panel-border);}
+
+  .pool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   @media (max-width:1000px){.pool-grid{grid-template-columns:1fr;}}
   .pool-card{border:1px solid var(--panel-border);background:var(--panel);padding:16px;}
   .pool-card h2{margin:0 0 8px;font-size:14px;letter-spacing:2px;}
   .pool-card.crypto h2{color:var(--amber);}
-  .pool-card.yield h2{color:#4bd6ff;}
+  .pool-card.yield h2{color:var(--blue);}
   .pool-val{font-size:26px;font-weight:600;}
   .stale{color:var(--red)!important;}
   .fresh{color:var(--green);}
   .pool-updated{font-size:10px;color:var(--text-dim);margin-top:6px;}
   pre{white-space:pre-wrap;font-size:11px;color:#cfe8d6;margin-top:8px;}
-  .actions{margin-top:24px;border:1px solid var(--panel-border);background:var(--panel);}
+
+  .capital-card{border:1px solid var(--panel-border);background:var(--panel);padding:18px 20px;}
+  .capital-total{font-size:13px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
+  .capital-total .num{color:var(--green);font-size:22px;font-weight:600;margin-left:8px;}
+  .cap-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
+  .cap-label{width:64px;letter-spacing:1px;flex-shrink:0;}
+  .cap-label.options{color:var(--green);}
+  .cap-label.crypto{color:var(--amber);}
+  .cap-label.yield{color:var(--blue);}
+  .cap-bar-track{flex:1;height:16px;background:#0a1810;border:1px solid var(--panel-border);overflow:hidden;}
+  .cap-bar-fill{height:100%;transition:width .6s ease;}
+  .cap-bar-fill.options{background:linear-gradient(90deg,var(--green-glow),var(--green));}
+  .cap-bar-fill.crypto{background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
+  .cap-bar-fill.yield{background:linear-gradient(90deg,rgba(75,214,255,.35),var(--blue));}
+  .cap-value{width:90px;text-align:right;color:#cfe8d6;flex-shrink:0;}
+  .cap-pct{width:44px;text-align:right;color:var(--text-dim);flex-shrink:0;}
+
+  .actions{margin-top:14px;border:1px solid var(--panel-border);background:var(--panel);}
   .action-row{display:grid;grid-template-columns:60px 90px 1fr;gap:10px;padding:8px 12px;font-size:11px;border-bottom:1px solid var(--panel-border);}
   .prio-high{color:var(--red);} .prio-med{color:var(--amber);} .prio-low{color:var(--text-dim);}
 </style>
@@ -48,12 +70,20 @@
     <div class="sync-status" id="sync-status"><span class="dot"></span>connecting...</div>
   </div>
 
+  <div class="section-label">POOLS</div>
   <div class="pool-grid" id="pool-grid">
     <div class="pool-card options"><h2>OPTIONS</h2><div class="pool-val">—</div></div>
     <div class="pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
     <div class="pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
   </div>
 
+  <div class="section-label">CAPITAL ALLOCATION</div>
+  <div class="capital-card">
+    <div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
+    <div id="capital-bars"></div>
+  </div>
+
+  <div class="section-label">PRIORITY ACTIONS</div>
   <div class="actions" id="actions"></div>
 </div>
 
@@ -72,6 +102,12 @@
 
   function minutesAgo(iso) {
     return (Date.now() - new Date(iso).getTime()) / 60000;
+  }
+
+  function poolValue(row) {
+    if (!row) return 0;
+    const v = row.data.total_value ?? row.data.deployed ?? null;
+    return typeof v === "number" ? v : 0;
   }
 
   function renderPools(snapshots) {
@@ -100,6 +136,30 @@
     }
   }
 
+  function renderCapital(snapshots) {
+    const order = ["options", "crypto", "yield"];
+    const values = order.map(pool => {
+      const row = snapshots.find(s => s.pool === pool);
+      return { pool, value: poolValue(row) };
+    });
+    const total = values.reduce((s, v) => s + v.value, 0);
+    document.getElementById("capital-total-val").textContent =
+      "$" + total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    const bars = document.getElementById("capital-bars");
+    bars.innerHTML = values.map(v => {
+      const pct = total > 0 ? (v.value / total) * 100 : 0;
+      return `
+        <div class="cap-row">
+          <div class="cap-label ${v.pool}">${v.pool.toUpperCase()}</div>
+          <div class="cap-bar-track"><div class="cap-bar-fill ${v.pool}" style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="cap-value">$${v.value.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+          <div class="cap-pct">${pct.toFixed(0)}%</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   function renderActions(actions) {
     const wrap = document.getElementById("actions");
     wrap.innerHTML = actions
@@ -120,6 +180,7 @@
         fetchTable("priority_actions?order=created_at.desc&limit=20")
       ]);
       renderPools(snapshots);
+      renderCapital(snapshots);
       renderActions(actions);
       document.getElementById("sync-status").innerHTML =
         `<span class="dot"></span>live · last refresh ${new Date().toLocaleTimeString()}`;
