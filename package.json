@@ -1,0 +1,15 @@
+{
+  "name": "tff-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trading For Freedom — poller bots + dashboard backend",
+  "scripts": {
+    "poll:crypto": "node scripts/poll-crypto.js",
+    "poll:yield": "node scripts/poll-yield.js",
+    "push:options": "node scripts/push-options-snapshot.js"
+  },
+  "dependencies": {
+    "tweetnacl": "^1.0.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
