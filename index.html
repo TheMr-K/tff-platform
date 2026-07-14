@@ -185,7 +185,8 @@
   const LED_SEGMENTS = 40;
 
   async function fetchTable(table) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
+    const sep = table.includes("?") ? "&" : "?";
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${sep}select=*`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
     });
     if (!res.ok) throw new Error(`${table} fetch failed: ${res.status}`);
