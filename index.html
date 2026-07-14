@@ -55,6 +55,18 @@
   .cap-value{width:90px;text-align:right;color:#cfe8d6;flex-shrink:0;}
   .cap-pct{width:44px;text-align:right;color:var(--text-dim);flex-shrink:0;}
 
+  .watch-card{border:1px solid var(--panel-border);background:var(--panel);}
+  .watch-row{display:grid;grid-template-columns:90px 70px 90px 1fr;gap:12px;padding:10px 14px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
+  .watch-row.header{color:var(--text-dim);letter-spacing:2px;font-size:9px;}
+  .watch-row:last-child{border-bottom:none;}
+  .watch-ticker{color:var(--green);font-weight:600;}
+  .watch-type{text-transform:uppercase;color:var(--text-dim);}
+  .watch-type.earnings{color:var(--amber);}
+  .watch-type.macro{color:var(--blue);}
+  .watch-date{color:#cfe8d6;}
+  .watch-desc{color:#cfe8d6;}
+  .unconfirmed{color:var(--red);font-size:9px;letter-spacing:1px;margin-left:6px;}
+
   .actions{margin-top:14px;border:1px solid var(--panel-border);background:var(--panel);}
   .action-row{display:grid;grid-template-columns:60px 90px 1fr;gap:10px;padding:8px 12px;font-size:11px;border-bottom:1px solid var(--panel-border);}
   .prio-high{color:var(--red);} .prio-med{color:var(--amber);} .prio-low{color:var(--text-dim);}
@@ -81,6 +93,12 @@
   <div class="capital-card">
     <div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
     <div id="capital-bars"></div>
+  </div>
+
+  <div class="section-label">WEEKLY WATCH — EARNINGS &amp; CATALYSTS</div>
+  <div class="watch-card">
+    <div class="watch-row header"><div>DATE</div><div>TICKER</div><div>TYPE</div><div>NOTE</div></div>
+    <div id="watch-list"></div>
   </div>
 
   <div class="section-label">PRIORITY ACTIONS</div>
@@ -160,6 +178,19 @@
     }).join("");
   }
 
+  function renderWatch(items) {
+    const wrap = document.getElementById("watch-list");
+    const sorted = [...items].sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+    wrap.innerHTML = sorted.map(w => `
+      <div class="watch-row">
+        <div class="watch-date">${w.event_date}</div>
+        <div class="watch-ticker">${w.ticker}</div>
+        <div class="watch-type ${w.event_type}">${w.event_type}</div>
+        <div class="watch-desc">${w.description}${w.confirmed === false ? '<span class="unconfirmed">UNCONFIRMED</span>' : ''}</div>
+      </div>
+    `).join("") || `<div class="watch-row"><div></div><div></div><div></div><div>no upcoming events on file</div></div>`;
+  }
+
   function renderActions(actions) {
     const wrap = document.getElementById("actions");
     wrap.innerHTML = actions
@@ -175,13 +206,15 @@
 
   async function refresh() {
     try {
-      const [snapshots, actions] = await Promise.all([
+      const [snapshots, actions, watch] = await Promise.all([
         fetchTable("pool_snapshots"),
-        fetchTable("priority_actions?order=created_at.desc&limit=20")
+        fetchTable("priority_actions?order=created_at.desc&limit=20"),
+        fetchTable("weekly_watch?order=event_date.asc")
       ]);
       renderPools(snapshots);
       renderCapital(snapshots);
       renderActions(actions);
+      renderWatch(watch);
       document.getElementById("sync-status").innerHTML =
         `<span class="dot"></span>live · last refresh ${new Date().toLocaleTimeString()}`;
     } catch (err) {
