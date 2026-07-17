@@ -29,10 +29,12 @@ const STABLECOIN_FALLBACK = new Set(["USDG", "USDC", "USDT", "PYUSD", "DAI"]);
 function sign(method, path, body, timestamp) {
   const message = `${API_KEY}${timestamp}${path}${method}${body}`;
 
-  // Robinhood gives you the raw 32-byte Ed25519 seed, base64-encoded.
-  // tweetnacl's sign.detached() requires the full 64-byte secret key
-  // (seed + public key), not the bare seed — so derive the keypair first.
-  const seed = Uint8Array.from(Buffer.from(PRIVATE_KEY_B64, "base64"));
+  // Robinhood's base64 private key decodes to more than 32 bytes. Their own
+  // Python sample does `private_bytes[:32]` before constructing the key —
+  // only the first 32 bytes are the actual Ed25519 seed. tweetnacl's
+  // fromSeed() requires exactly 32 bytes, so slice the same way.
+  const decoded = Uint8Array.from(Buffer.from(PRIVATE_KEY_B64, "base64"));
+  const seed = decoded.slice(0, 32);
   const keyPair = nacl.sign.keyPair.fromSeed(seed);
 
   const messageBytes = Buffer.from(message, "utf-8");
