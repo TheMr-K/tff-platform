@@ -17,13 +17,16 @@
   html,body{margin:0;background:var(--bg);color:var(--amber);font-family:'IBM Plex Mono',monospace;min-height:100vh;}
   body::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(to bottom,rgba(255,176,32,.03) 0px,rgba(255,176,32,.03) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:999;mix-blend-mode:overlay;}
   .wrap{max-width:1400px;margin:0 auto;padding:20px 24px 60px;}
-  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--panel-border);padding-bottom:14px;margin-bottom:18px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--panel-border);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
   .brand h1{margin:0;font-size:26px;letter-spacing:4px;color:var(--green);text-shadow:0 0 14px var(--green-glow);}
   .brand h1 span{color:var(--amber);text-shadow:0 0 14px var(--amber-glow);}
   .brand .glyph{font-size:11px;color:var(--text-dim);letter-spacing:3px;}
+  .header-right{display:flex;align-items:center;gap:12px;}
   .sync-status{font-size:10px;color:var(--text-dim);text-align:right;letter-spacing:1px;}
   .sync-status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 1.8s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .notif-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:inherit;font-size:10px;letter-spacing:1px;padding:6px 10px;cursor:pointer;white-space:nowrap;}
+  .notif-btn.on{color:var(--green);border-color:var(--green);}
   .section-label{font-size:11px;letter-spacing:3px;color:var(--amber);margin:26px 0 10px;display:flex;align-items:center;gap:10px;}
   .section-label::after{content:"";flex:1;height:1px;background:var(--panel-border);}
   .crt-panel{
@@ -77,17 +80,16 @@
   .pool-flag{font-size:10px;letter-spacing:1px;margin-top:8px;padding:4px 8px;border:1px solid;display:inline-block;}
   .pool-flag.warn{color:var(--red);border-color:var(--red);}
   .pool-flag.ok{color:var(--green);border-color:var(--green);}
-  .hill-card{padding:18px 20px 14px;}
-  .hill-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
-  .hill-title{font-size:11px;letter-spacing:2px;color:var(--text-dim);}
-  .hill-total{font-size:24px;font-weight:700;color:var(--green);text-shadow:0 0 8px var(--green-glow);}
-  .hill-wrap{position:relative;height:120px;}
-  .hill-bars{display:flex;gap:2px;align-items:flex-end;height:100%;position:relative;z-index:1;}
-  .hill-bar-track{flex:1;display:flex;align-items:flex-end;border-left:1px solid rgba(255,176,32,.08);}
-  .hill-bar-fill{width:100%;background:linear-gradient(180deg,var(--green),#0f5a26);box-shadow:0 0 5px var(--green-glow);}
-  .hill-line{position:absolute;inset:0;z-index:2;pointer-events:none;}
-  .hill-axis{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text-dim);letter-spacing:1px;}
-  .hill-caption{font-size:9px;color:var(--text-dim);margin-top:8px;letter-spacing:.5px;}
+  .trend-card{padding:18px 20px 14px;}
+  .trend-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:8px;}
+  .trend-title{font-size:11px;letter-spacing:2px;color:var(--text-dim);}
+  .trend-total{font-size:30px;font-weight:700;color:var(--green);text-shadow:0 0 8px var(--green-glow);}
+  .trend-delta{font-size:12px;margin-left:10px;}
+  .trend-delta.up{color:var(--green);}
+  .trend-delta.down{color:var(--red);}
+  .trend-chart-wrap{height:150px;margin-top:8px;}
+  .trend-axis{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-dim);letter-spacing:.5px;}
+  .trend-caption{font-size:9px;color:var(--text-dim);margin-top:8px;letter-spacing:.5px;}
   .capital-card{padding:18px 20px;}
   .capital-total{font-size:13px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
   .capital-total .num{color:var(--amber);font-size:20px;font-weight:600;margin-left:8px;text-shadow:0 0 8px var(--amber-glow);}
@@ -125,7 +127,10 @@
       <span class="glyph">// TRADING FOR FREEDOM — LIVE OPS TERMINAL</span>
       <h1>TFF<span>://</span>TERMINAL</h1>
     </div>
-    <div class="sync-status" id="sync-status"><span class="dot"></span>connecting...</div>
+    <div class="header-right">
+      <button class="notif-btn" id="notif-btn">🔔 ENABLE ALERTS</button>
+      <div class="sync-status" id="sync-status"><span class="dot"></span>connecting...</div>
+    </div>
   </div>
 
   <div class="crt-panel master-panel">
@@ -167,18 +172,19 @@
     <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
   </div>
 
-  <div class="section-label">OVERALL CAPITAL GAUGE</div>
-  <div class="crt-panel hill-card">
-    <div class="hill-header">
-      <div class="hill-title">FILL LEVEL — ALL POOLS COMBINED</div>
-      <div class="hill-total" id="hill-total">$—</div>
+  <div class="section-label">TOTAL CAPITAL — TREND</div>
+  <div class="crt-panel trend-card">
+    <div class="trend-header">
+      <div>
+        <div class="trend-title">OPTIONS + CRYPTO + YIELD, COMBINED</div>
+        <div><span class="trend-total" id="trend-total">$—</span><span class="trend-delta" id="trend-delta"></span></div>
+      </div>
     </div>
-    <div class="hill-wrap">
-      <div class="hill-bars" id="hill-bars"></div>
-      <svg class="hill-line" id="hill-svg" viewBox="0 0 50 120" preserveAspectRatio="none"></svg>
+    <div class="trend-chart-wrap">
+      <svg id="trend-svg" viewBox="0 0 300 140" preserveAspectRatio="none" width="100%" height="100%"></svg>
     </div>
-    <div class="hill-axis"><span>$0</span><span>$250</span><span>$500</span><span>$750</span><span>$1,000</span></div>
-    <div class="hill-caption">scaled to $1,000 combined working-capital target (Options $500 + Crypto $250 + Yield $250) — adjust once yield pool size is finalized</div>
+    <div class="trend-axis"><span id="trend-start-date">—</span><span id="trend-end-date">—</span></div>
+    <div class="trend-caption">history logs automatically every time any pool updates — sparse today, fills in over coming days</div>
   </div>
 
   <div class="section-label">CAPITAL ALLOCATION</div>
@@ -202,8 +208,88 @@
   const SUPABASE_ANON_KEY = "sb_publishable_Sm5lhcYCs3KdSXWSGi4PmA_aCSf28fQ";
   const STALE_AFTER_MIN = 45;
   const LED_SEGMENTS = 40;
-  const HILL_BARS = 50;
-  const HILL_TARGET = 1000;
+  const OPTIONS_MOVE_PCT = 5;
+  const CRYPTO_MOVE_PCT = 3;
+
+  const notifState = { optionsMarks: {}, cryptoPrices: {}, flags: new Set() };
+
+  function notify(title, body) {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try { new Notification(title, { body }); } catch (e) { console.log(title, body); }
+    }
+  }
+
+  function updateNotifBtn() {
+    const btn = document.getElementById("notif-btn");
+    if (typeof Notification === "undefined") {
+      btn.textContent = "ALERTS UNSUPPORTED";
+      btn.disabled = true;
+      return;
+    }
+    if (Notification.permission === "granted") {
+      btn.textContent = "🔔 ALERTS ON";
+      btn.classList.add("on");
+    } else {
+      btn.textContent = "🔔 ENABLE ALERTS";
+      btn.classList.remove("on");
+    }
+  }
+
+  document.getElementById("notif-btn").addEventListener("click", () => {
+    if (typeof Notification === "undefined") return;
+    Notification.requestPermission().then(() => {
+      updateNotifBtn();
+      if (Notification.permission === "granted") {
+        notify("TFF Terminal alerts enabled", "You'll be notified of price moves while this tab stays open.");
+      }
+    });
+  });
+
+  function checkAlerts(snapshots) {
+    const optionsRow = snapshots.find(s => s.pool === "options");
+    const cryptoRow = snapshots.find(s => s.pool === "crypto");
+
+    (optionsRow?.data?.open_positions || []).forEach(p => {
+      const key = `opt-${p.ticker}-${p.strike}`;
+      const prev = notifState.optionsMarks[key];
+      if (prev != null && p.mark_price != null && prev > 0) {
+        const pctMove = ((p.mark_price - prev) / prev) * 100;
+        if (Math.abs(pctMove) >= OPTIONS_MOVE_PCT) {
+          notify(`${p.ticker} ${p.strike} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`,
+            `Mark now $${p.mark_price} (was $${prev})`);
+        }
+      }
+      notifState.optionsMarks[key] = p.mark_price;
+
+      if (p.profit_target && p.mark_price != null && p.mark_price >= p.profit_target * 0.9) {
+        const fKey = key + "-target";
+        if (!notifState.flags.has(fKey)) {
+          notify(`${p.ticker} nearing profit target`, `Mark $${p.mark_price} vs target $${p.profit_target}`);
+          notifState.flags.add(fKey);
+        }
+      }
+      if (p.stop_loss_price && p.mark_price != null && p.mark_price <= p.stop_loss_price * 1.1) {
+        const fKey = key + "-stop";
+        if (!notifState.flags.has(fKey)) {
+          notify(`${p.ticker} nearing stop-loss`, `Mark $${p.mark_price} vs stop $${p.stop_loss_price}`);
+          notifState.flags.add(fKey);
+        }
+      }
+    });
+
+    (cryptoRow?.data?.positions || []).forEach(p => {
+      if (p.price == null) return;
+      const key = `cry-${p.asset}`;
+      const prev = notifState.cryptoPrices[key];
+      if (prev != null && prev > 0) {
+        const pctMove = ((p.price - prev) / prev) * 100;
+        if (Math.abs(pctMove) >= CRYPTO_MOVE_PCT) {
+          notify(`${p.asset} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`, `Price now $${p.price}`);
+        }
+      }
+      notifState.cryptoPrices[key] = p.price;
+    });
+  }
 
   async function fetchTable(table) {
     const sep = table.includes("?") ? "&" : "?";
@@ -252,45 +338,68 @@
       if (total > 0 && hit) seg.classList.add(`on-${hit.pool}`);
       bar.appendChild(seg);
     }
-    return total;
   }
 
-  function bellHeight(i, n) {
-    const t = i / (n - 1);
-    const peak = 0.62, sigma = 0.28;
-    return Math.exp(-((t - peak) ** 2) / (2 * sigma * sigma));
-  }
+  function renderTrend(rows) {
+    const svg = document.getElementById("trend-svg");
+    const totalEl = document.getElementById("trend-total");
+    const deltaEl = document.getElementById("trend-delta");
+    const startEl = document.getElementById("trend-start-date");
+    const endEl = document.getElementById("trend-end-date");
 
-  function renderHill(total) {
-    const maxPx = 100;
-    const basePx = 14;
-    const fillFrac = Math.max(0, Math.min(total / HILL_TARGET, 1));
-
-    const barsWrap = document.getElementById("hill-bars");
-    barsWrap.innerHTML = "";
-    const envelope = [];
-
-    for (let i = 0; i < HILL_BARS; i++) {
-      const bh = bellHeight(i, HILL_BARS);
-      const trackPx = basePx + bh * maxPx;
-      const fillPx = trackPx * fillFrac;
-      envelope.push(120 - trackPx);
-
-      const track = document.createElement("div");
-      track.className = "hill-bar-track";
-      track.style.height = "120px";
-      const fill = document.createElement("div");
-      fill.className = "hill-bar-fill";
-      fill.style.height = fillPx + "px";
-      track.appendChild(fill);
-      barsWrap.appendChild(track);
+    if (!rows || rows.length === 0) {
+      svg.innerHTML = "";
+      totalEl.textContent = "$—";
+      deltaEl.textContent = "";
+      startEl.textContent = "no history yet";
+      endEl.textContent = "";
+      return;
     }
 
-    const svg = document.getElementById("hill-svg");
-    const pts = envelope.map((y, i) => `${i + 0.5},${y}`).join(" ");
-    svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="var(--red)" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.85"/>`;
+    const values = rows.map(r => r.total_value);
+    const last = values[values.length - 1];
+    const first = values[0];
+    const delta = last - first;
+    const deltaPct = first > 0 ? (delta / first) * 100 : 0;
 
-    document.getElementById("hill-total").textContent = money(total);
+    totalEl.textContent = money(last);
+    if (rows.length > 1) {
+      deltaEl.className = "trend-delta " + (delta >= 0 ? "up" : "down");
+      deltaEl.textContent = `${delta >= 0 ? "▲" : "▼"} ${money(Math.abs(delta))} (${deltaPct.toFixed(1)}%) since first log`;
+    } else {
+      deltaEl.textContent = "";
+    }
+
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+    if (min === max) { min -= 1; max += 1; }
+    const pad = (max - min) * 0.1;
+    min -= pad; max += pad;
+
+    const w = 300, h = 140;
+    const points = rows.map((r, i) => {
+      const x = rows.length > 1 ? (i / (rows.length - 1)) * w : w / 2;
+      const y = h - ((r.total_value - min) / (max - min)) * h;
+      return [x, y];
+    });
+
+    const lineStr = points.map(p => p.join(",")).join(" ");
+    const areaStr = `0,${h} ${lineStr} ${w},${h}`;
+
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${areaStr}" fill="url(#trendFill)"/>
+      <polyline points="${lineStr}" fill="none" stroke="var(--green)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+    `;
+
+    const fmt = iso => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    startEl.textContent = fmt(rows[0].recorded_at);
+    endEl.textContent = fmt(rows[rows.length - 1].recorded_at);
   }
 
   function renderGauges(snapshots, watch) {
@@ -447,13 +556,15 @@
 
   async function refresh() {
     try {
-      const [snapshots, actions, watch] = await Promise.all([
+      const [snapshots, actions, watch, history] = await Promise.all([
         fetchTable("pool_snapshots"),
         fetchTable("priority_actions?order=created_at.desc&limit=20"),
-        fetchTable("weekly_watch?order=event_date.asc")
+        fetchTable("weekly_watch?order=event_date.asc"),
+        fetchTable("capital_history?order=recorded_at.asc&limit=500")
       ]);
-      const total = renderMaster(snapshots);
-      renderHill(total);
+      checkAlerts(snapshots);
+      renderMaster(snapshots);
+      renderTrend(history);
       renderGauges(snapshots, watch);
       renderPools(snapshots);
       renderCapital(snapshots);
@@ -467,6 +578,7 @@
     }
   }
 
+  updateNotifBtn();
   refresh();
   setInterval(refresh, 30000);
 </script>
