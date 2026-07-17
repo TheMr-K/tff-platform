@@ -16,15 +16,22 @@ const { writeSnapshot, addPriorityAction } = require("./lib/supabase-write");
 const BASE_URL = "https://trading.robinhood.com";
 const API_KEY = process.env.RH_CRYPTO_API_KEY;
 const PRIVATE_KEY_B64 = process.env.RH_CRYPTO_PRIVATE_KEY_B64;
+const DEBUG = process.env.DEBUG_CRYPTO_POLL === "1";
 
 const WATCHLIST = ["BTC-USD", "ETH-USD", "XRP-USD"];
 const CRYPTO_POOL_SIZE = 250;
 
 function sign(method, path, body, timestamp) {
   const message = `${API_KEY}${timestamp}${path}${method}${body}`;
-  const privateKey = Uint8Array.from(Buffer.from(PRIVATE_KEY_B64, "base64"));
+
+  // Robinhood gives you the raw 32-byte Ed25519 seed, base64-encoded.
+  // tweetnacl's sign.detached() requires the full 64-byte secret key
+  // (seed + public key), not the bare seed — so derive the keypair first.
+  const seed = Uint8Array.from(Buffer.from(PRIVATE_KEY_B64, "base64"));
+  const keyPair = nacl.sign.keyPair.fromSeed(seed);
+
   const messageBytes = Buffer.from(message, "utf-8");
-  const signature = nacl.sign.detached(messageBytes, privateKey);
+  const signature = nacl.sign.detached(messageBytes, keyPair.secretKey);
   return Buffer.from(signature).toString("base64");
 }
 
@@ -57,7 +64,9 @@ async function main() {
 
   const account = await rhRequest("GET", "/api/v1/crypto/trading/accounts/");
   const holdings = await rhRequest("GET", "/api/v1/crypto/trading/holdings/");
-  console.log("RAW HOLDINGS:", JSON.stringify(holdings, null, 2));
+  if (DEBUG) {
+    console.log("RAW HOLDINGS:", JSON.stringify(holdings, null, 2));
+  }
   const heldSymbols = (holdings.results || []).map((h) => `${h.asset_code}-USD`);
   const symbolsToPrice = [...new Set([...WATCHLIST, ...heldSymbols])];
   const bestBidAsk = symbolsToPrice.length
@@ -68,7 +77,8 @@ async function main() {
     : { results: [] };
 
   const positions = (holdings.results || []).map((h) => {
-    const quote = (bestBidAsk.results || []).find((q) => q.symbol.startsWith(h.asset_code));
+    const targetSymbol = `${h.asset_code}-USD`;
+    const quote = (bestBidAsk.results || []).find((q) => q.symbol === targetSymbol);
     const price = quote ? Number(quote.price) : null;
     const qty = Number(h.total_quantity);
     return {
