@@ -55,14 +55,15 @@
   .led-legend .lg-options::before{color:var(--green);}
   .led-legend .lg-crypto::before{color:var(--amber);}
   .led-legend .lg-yield::before{color:var(--blue);}
-  .gauge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  @media (max-width:900px){.gauge-grid{grid-template-columns:1fr;}}
-  .gauge-card{padding:14px 16px;}
-  .gauge-label{font-size:10px;letter-spacing:2px;color:var(--text-dim);}
-  .gauge-num{font-size:22px;font-weight:600;color:var(--green);text-shadow:0 0 8px var(--green-glow);margin:4px 0 8px;}
-  .gauge-bar-track{height:8px;background:#1c1508;border:1px solid var(--panel-border);}
+  /* SYSTEM GAUGES — compact square cards, fixed small columns instead of
+     stretching full-width, so this section takes minimal vertical space. */
+  .gauge-grid{display:grid;grid-template-columns:repeat(3,minmax(88px,120px));gap:8px;}
+  .gauge-card{padding:8px 9px;aspect-ratio:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
+  .gauge-label{font-size:7px;letter-spacing:1px;color:var(--text-dim);line-height:1.2;}
+  .gauge-num{font-size:15px;font-weight:600;color:var(--green);text-shadow:0 0 6px var(--green-glow);margin:3px 0 5px;}
+  .gauge-bar-track{height:5px;background:#1c1508;border:1px solid var(--panel-border);}
   .gauge-bar-fill{height:100%;background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
-  .gauge-sub{font-size:9px;color:var(--text-dim);margin-top:6px;letter-spacing:.5px;}
+  .gauge-sub{font-size:7px;color:var(--text-dim);margin-top:4px;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   @media (max-width:1000px){.pool-grid{grid-template-columns:1fr;}}
   .pool-card{padding:16px;}
@@ -144,34 +145,6 @@
     </div>
   </div>
 
-  <div class="section-label">SYSTEM GAUGES</div>
-  <div class="gauge-grid">
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">BUYING POWER — OPTIONS</div>
-      <div class="gauge-num" id="gauge-bp">—</div>
-      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-bp-bar" style="width:0%"></div></div>
-      <div class="gauge-sub">of $500 max deployment</div>
-    </div>
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">CRYPTO DEPLOYED</div>
-      <div class="gauge-num" id="gauge-crypto">—</div>
-      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-crypto-bar" style="width:0%"></div></div>
-      <div class="gauge-sub" id="gauge-crypto-sub">of pool size</div>
-    </div>
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">NEXT CATALYST</div>
-      <div class="gauge-num" id="gauge-catalyst">—</div>
-      <div class="gauge-sub" id="gauge-catalyst-sub">—</div>
-    </div>
-  </div>
-
-  <div class="section-label">POOLS</div>
-  <div class="pool-grid" id="pool-grid">
-    <div class="crt-panel pool-card options"><h2>OPTIONS</h2><div class="pool-val">—</div></div>
-    <div class="crt-panel pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
-    <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
-  </div>
-
   <div class="section-label">TOTAL CAPITAL — TREND</div>
   <div class="crt-panel trend-card">
     <div class="trend-header">
@@ -201,6 +174,34 @@
 
   <div class="section-label">PRIORITY ACTIONS</div>
   <div class="crt-panel actions" id="actions"></div>
+
+  <div class="section-label">SYSTEM GAUGES</div>
+  <div class="gauge-grid">
+    <div class="crt-panel gauge-card">
+      <div class="gauge-label">BUYING POWER — OPTIONS</div>
+      <div class="gauge-num" id="gauge-bp">—</div>
+      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-bp-bar" style="width:0%"></div></div>
+      <div class="gauge-sub">of $500 max</div>
+    </div>
+    <div class="crt-panel gauge-card">
+      <div class="gauge-label">CRYPTO DEPLOYED</div>
+      <div class="gauge-num" id="gauge-crypto">—</div>
+      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-crypto-bar" style="width:0%"></div></div>
+      <div class="gauge-sub" id="gauge-crypto-sub">of pool size</div>
+    </div>
+    <div class="crt-panel gauge-card">
+      <div class="gauge-label">NEXT CATALYST</div>
+      <div class="gauge-num" id="gauge-catalyst">—</div>
+      <div class="gauge-sub" id="gauge-catalyst-sub">—</div>
+    </div>
+  </div>
+
+  <div class="section-label">POOLS</div>
+  <div class="pool-grid" id="pool-grid">
+    <div class="crt-panel pool-card options"><h2>OPTIONS</h2><div class="pool-val">—</div></div>
+    <div class="crt-panel pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
+    <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
+  </div>
 </div>
 
 <script>
