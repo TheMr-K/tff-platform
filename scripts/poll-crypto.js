@@ -57,6 +57,7 @@ async function main() {
 
   const account = await rhRequest("GET", "/api/v1/crypto/trading/accounts/");
   const holdings = await rhRequest("GET", "/api/v1/crypto/trading/holdings/");
+  console.log("RAW HOLDINGS:", JSON.stringify(holdings, null, 2));
   const heldSymbols = (holdings.results || []).map((h) => `${h.asset_code}-USD`);
   const symbolsToPrice = [...new Set([...WATCHLIST, ...heldSymbols])];
   const bestBidAsk = symbolsToPrice.length
