@@ -56,14 +56,15 @@ async function main() {
   }
 
   const account = await rhRequest("GET", "/api/v1/crypto/trading/accounts/");
-  const holdings = await rhRequest(
-    "GET",
-    `/api/v1/crypto/trading/holdings/?asset_codes=${WATCHLIST.map((s) => s.split("-")[0]).join(",")}`
-  );
-  const bestBidAsk = await rhRequest(
-    "GET",
-    `/api/v1/crypto/marketdata/best_bid_ask/?symbol=${WATCHLIST.join("&symbol=")}`
-  );
+  const holdings = await rhRequest("GET", "/api/v1/crypto/trading/holdings/");
+  const heldSymbols = (holdings.results || []).map((h) => `${h.asset_code}-USD`);
+  const symbolsToPrice = [...new Set([...WATCHLIST, ...heldSymbols])];
+  const bestBidAsk = symbolsToPrice.length
+    ? await rhRequest(
+        "GET",
+        `/api/v1/crypto/marketdata/best_bid_ask/?symbol=${symbolsToPrice.join("&symbol=")}`
+      )
+    : { results: [] };
 
   const positions = (holdings.results || []).map((h) => {
     const quote = (bestBidAsk.results || []).find((q) => q.symbol.startsWith(h.asset_code));
