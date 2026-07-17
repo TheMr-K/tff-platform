@@ -21,6 +21,11 @@ const DEBUG = process.env.DEBUG_CRYPTO_POLL === "1";
 const WATCHLIST = ["BTC-USD", "ETH-USD", "XRP-USD"];
 const CRYPTO_POOL_SIZE = 250;
 
+// Stablecoins are pegged ~$1 and often have no live order book, so
+// best_bid_ask can return nothing for them. Fall back to $1.00 rather
+// than silently dropping their value from the snapshot.
+const STABLECOIN_FALLBACK = new Set(["USDG", "USDC", "USDT", "PYUSD", "DAI"]);
+
 function sign(method, path, body, timestamp) {
   const message = `${API_KEY}${timestamp}${path}${method}${body}`;
 
@@ -69,17 +74,29 @@ async function main() {
   }
   const heldSymbols = (holdings.results || []).map((h) => `${h.asset_code}-USD`);
   const symbolsToPrice = [...new Set([...WATCHLIST, ...heldSymbols])];
-  const bestBidAsk = symbolsToPrice.length
-    ? await rhRequest(
+  let bestBidAsk = { results: [] };
+  if (symbolsToPrice.length) {
+    try {
+      bestBidAsk = await rhRequest(
         "GET",
         `/api/v1/crypto/marketdata/best_bid_ask/?symbol=${symbolsToPrice.join("&symbol=")}`
-      )
-    : { results: [] };
+      );
+    } catch (err) {
+      // If ANY symbol in this batch is invalid/unquotable, Robinhood can
+      // reject the whole request. Don't let that take down the entire poll —
+      // fall back to null prices for this run and keep going, so holdings
+      // still get written to Supabase instead of silently going stale.
+      console.error("best_bid_ask lookup failed, continuing with null prices:", err.message);
+    }
+  }
 
   const positions = (holdings.results || []).map((h) => {
     const targetSymbol = `${h.asset_code}-USD`;
     const quote = (bestBidAsk.results || []).find((q) => q.symbol === targetSymbol);
-    const price = quote ? Number(quote.price) : null;
+    let price = quote ? Number(quote.price) : null;
+    if (price === null && STABLECOIN_FALLBACK.has(h.asset_code)) {
+      price = 1.0;
+    }
     const qty = Number(h.total_quantity);
     return {
       asset: h.asset_code,
