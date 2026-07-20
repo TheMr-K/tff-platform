@@ -1,0 +1,61 @@
+// Pushes closed/realized trades into the `trade_journal` Supabase table.
+// Manual-only, same execution model as push-options-snapshot.js: pulled
+// live via get_pnl_trade_history during a Claude/Robinhood-MCP session,
+// then pushed through this script via the "TFF Trade Journal Push"
+// GitHub Actions workflow.
+//
+// Usage: node push-trade-journal.js '<json array of trades>'
+//
+// Required env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+async function pushTradeJournal(trades) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY.");
+  }
+  if (!Array.isArray(trades) || trades.length === 0) {
+    console.log("No trades to push.");
+    return;
+  }
+
+  // on_conflict matches the unique constraint on (pool, symbol, trade_date,
+  // close_price) — re-pushing the same closed trade is a no-op, not a
+  // duplicate row, so re-running this safely is fine.
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/trade_journal?on_conflict=pool,symbol,trade_date,close_price`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(trades),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`trade_journal push failed: ${res.status} ${text}`);
+  }
+
+  const written = await res.json();
+  console.log(`Trade journal push complete: ${written.length} row(s) upserted.`);
+}
+
+if (require.main === module) {
+  const raw = process.argv[2];
+  if (!raw) {
+    console.error("Usage: node push-trade-journal.js '<json array of trades>'");
+    process.exit(1);
+  }
+  pushTradeJournal(JSON.parse(raw)).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { pushTradeJournal };
