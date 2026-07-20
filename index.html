@@ -55,8 +55,6 @@
   .led-legend .lg-options::before{color:var(--green);}
   .led-legend .lg-crypto::before{color:var(--amber);}
   .led-legend .lg-yield::before{color:var(--blue);}
-  /* SYSTEM GAUGES — compact square cards, fixed small columns instead of
-     stretching full-width, so this section takes minimal vertical space. */
   .gauge-grid{display:grid;grid-template-columns:repeat(3,minmax(88px,120px));gap:8px;}
   .gauge-card{padding:8px 9px;aspect-ratio:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
   .gauge-label{font-size:7px;letter-spacing:1px;color:var(--text-dim);line-height:1.2;}
@@ -116,6 +114,11 @@
   .watch-date{color:#e8d9b8;}
   .watch-desc{color:#e8d9b8;}
   .unconfirmed{color:var(--red);font-size:9px;letter-spacing:1px;margin-left:6px;}
+  .news-row{padding:10px 14px;border-bottom:1px solid var(--panel-border);font-size:11px;}
+  .news-row:last-child{border-bottom:none;}
+  .news-ticker{color:var(--green);font-weight:600;margin-right:8px;}
+  .news-source{color:var(--text-dim);font-size:9px;letter-spacing:1px;}
+  .news-headline{color:#e8d9b8;margin-top:3px;}
   .actions{margin-top:14px;}
   .action-row{display:grid;grid-template-columns:60px 90px 1fr;gap:10px;padding:8px 12px;font-size:11px;border-bottom:1px solid var(--panel-border);}
   .prio-high{color:var(--red);} .prio-med{color:var(--amber);} .prio-low{color:var(--text-dim);}
@@ -170,6 +173,11 @@
   <div class="crt-panel watch-card">
     <div class="watch-row header"><div>DATE</div><div>TICKER</div><div>TYPE</div><div>NOTE</div></div>
     <div id="watch-list"></div>
+  </div>
+
+  <div class="section-label">MARKET NEWS — WATCHLIST</div>
+  <div class="crt-panel news-card">
+    <div id="news-list"></div>
   </div>
 
   <div class="section-label">PRIORITY ACTIONS</div>
@@ -535,6 +543,16 @@
     `).join("") || `<div class="watch-row"><div></div><div></div><div></div><div>no upcoming events on file</div></div>`;
   }
 
+  function renderNews(items) {
+    const wrap = document.getElementById("news-list");
+    wrap.innerHTML = (items || []).map(n => `
+      <div class="news-row">
+        <span class="news-ticker">${n.ticker}</span><span class="news-source">${n.source} · ${new Date(n.published_at).toLocaleDateString()}</span>
+        <div class="news-headline">${n.headline}</div>
+      </div>
+    `).join("") || `<div class="news-row">no recent news on file</div>`;
+  }
+
   function renderActions(actions) {
     const wrap = document.getElementById("actions");
     const seen = new Set();
@@ -557,11 +575,12 @@
 
   async function refresh() {
     try {
-      const [snapshots, actions, watch, history] = await Promise.all([
+      const [snapshots, actions, watch, history, news] = await Promise.all([
         fetchTable("pool_snapshots"),
         fetchTable("priority_actions?order=created_at.desc&limit=20"),
         fetchTable("weekly_watch?order=event_date.asc"),
-        fetchTable("capital_history?order=recorded_at.asc&limit=500")
+        fetchTable("capital_history?order=recorded_at.asc&limit=500"),
+        fetchTable("market_news?order=published_at.desc&limit=10")
       ]);
       checkAlerts(snapshots);
       renderMaster(snapshots);
@@ -571,6 +590,7 @@
       renderCapital(snapshots);
       renderActions(actions);
       renderWatch(watch);
+      renderNews(news);
       document.getElementById("sync-status").innerHTML =
         `<span class="dot"></span>live · last refresh ${new Date().toLocaleTimeString()}`;
     } catch (err) {
