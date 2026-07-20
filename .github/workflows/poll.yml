@@ -25,6 +25,7 @@ jobs:
           RH_CRYPTO_PRIVATE_KEY_B64: ${{ secrets.RH_CRYPTO_PRIVATE_KEY_B64 }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DEBUG_CRYPTO_POLL: ${{ vars.DEBUG_CRYPTO_POLL }}
 
   poll-yield:
     runs-on: ubuntu-latest
