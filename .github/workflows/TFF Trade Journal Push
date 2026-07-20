@@ -1,0 +1,22 @@
+name: TFF Trade Journal Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      trades_json:
+        description: "JSON array of closed trades"
+        required: true
+
+jobs:
+  push-trade-journal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/push-trade-journal.js "$TRADES_JSON"
+        env:
+          TRADES_JSON: ${{ github.event.inputs.trades_json }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
