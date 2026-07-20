@@ -1,0 +1,29 @@
+name: TFF Options Snapshot Push
+
+# Manual-only — no schedule. Triggered after pulling live data from the
+# Robinhood Agentic MCP connector during a Claude session, since that
+# connector only exists inside a live chat and can't be reached by a
+# scheduled bot. Paste the snapshot JSON into the "snapshot_json" input
+# when running this from the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot_json:
+        description: "Options snapshot JSON"
+        required: true
+
+jobs:
+  push-options:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: node scripts/push-options-snapshot.js "$SNAPSHOT_JSON"
+        env:
+          SNAPSHOT_JSON: ${{ github.event.inputs.snapshot_json }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
