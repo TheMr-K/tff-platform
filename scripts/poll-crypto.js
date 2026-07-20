@@ -16,8 +16,9 @@ const { writeSnapshot, addPriorityAction } = require("./lib/supabase-write");
 const BASE_URL = "https://trading.robinhood.com";
 const API_KEY = process.env.RH_CRYPTO_API_KEY;
 const PRIVATE_KEY_B64 = process.env.RH_CRYPTO_PRIVATE_KEY_B64;
-const DEBUG = process.env.DEBUG_CRYPTO_POLL === "1";
-
+const DEBUG_RAW = process.env.DEBUG_CRYPTO_POLL;
+console.log("DEBUG_CRYPTO_POLL raw value:", JSON.stringify(DEBUG_RAW));
+const DEBUG = (DEBUG_RAW || "").trim() === "1";
 const WATCHLIST = ["BTC-USD", "ETH-USD", "XRP-USD"];
 const CRYPTO_POOL_SIZE = 250;
 
