@@ -55,6 +55,17 @@
   .led-legend .lg-options::before{color:var(--green);}
   .led-legend .lg-crypto::before{color:var(--amber);}
   .led-legend .lg-yield::before{color:var(--blue);}
+
+  .status-strip{display:flex;gap:0;flex-wrap:wrap;padding:10px 16px;margin-top:6px;}
+  .status-item{flex:1;min-width:100px;padding:4px 12px;font-size:10px;letter-spacing:1px;border-right:1px solid var(--panel-border);}
+  .status-item:last-child{border-right:none;}
+  .status-item .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;}
+  .status-item .dot.ok{background:var(--green);box-shadow:0 0 5px var(--green-glow);}
+  .status-item .dot.warn{background:var(--red);box-shadow:0 0 5px rgba(255,75,75,.6);}
+  .status-item .pool-name{color:var(--text-dim);display:block;margin-bottom:3px;}
+  .status-item .status-age{color:#e8d9b8;}
+  .status-item .status-age.warn{color:var(--red);}
+
   .gauge-grid{display:grid;grid-template-columns:repeat(3,minmax(88px,120px));gap:8px;}
   .gauge-card{padding:8px 9px;aspect-ratio:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
   .gauge-label{font-size:7px;letter-spacing:1px;color:var(--text-dim);line-height:1.2;}
@@ -104,6 +115,29 @@
   .cap-bar-fill.yield{background:linear-gradient(90deg,rgba(75,214,255,.35),var(--blue));}
   .cap-value{width:90px;text-align:right;color:#e8d9b8;flex-shrink:0;}
   .cap-pct{width:44px;text-align:right;color:var(--text-dim);flex-shrink:0;}
+
+  .pos-flags,.sector-flags{margin-bottom:10px;}
+  .pos-flag-warn{color:var(--red);font-size:10px;letter-spacing:.5px;padding:6px 10px;border:1px solid var(--red);display:inline-block;margin:0 6px 6px 0;}
+  .pos-row{display:grid;grid-template-columns:70px 64px 74px 130px 90px 100px;gap:8px;padding:9px 10px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
+  .pos-row.header{color:var(--text-dim);letter-spacing:1px;font-size:9px;}
+  .pos-row:last-child{border-bottom:none;}
+  .pos-ticker{color:var(--green);font-weight:600;}
+  .pos-pnl-up{color:var(--green);}
+  .pos-pnl-down{color:var(--red);}
+  .pos-stop-ok{color:var(--green);font-size:9px;letter-spacing:.5px;font-weight:600;}
+  .pos-stop-warn{color:var(--red);font-size:9px;letter-spacing:.5px;font-weight:700;}
+  .pos-target{font-size:10px;color:var(--text-dim);}
+  @media (max-width:700px){
+    .pos-row{grid-template-columns:58px 52px 58px 108px 78px;}
+    .pos-target-col{display:none;}
+  }
+
+  .sector-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
+  .sector-label{width:88px;letter-spacing:1px;flex-shrink:0;color:#e8d9b8;}
+  .sector-bar-track{flex:1;height:14px;background:#1c1508;border:1px solid var(--panel-border);overflow:hidden;}
+  .sector-bar-fill{height:100%;background:linear-gradient(90deg,var(--green-glow),var(--green));}
+  .sector-count{width:76px;text-align:right;color:var(--text-dim);flex-shrink:0;font-size:10px;}
+
   .watch-row{display:grid;grid-template-columns:90px 70px 90px 1fr;gap:12px;padding:10px 14px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
   .watch-row.header{color:var(--text-dim);letter-spacing:2px;font-size:9px;}
   .watch-row:last-child{border-bottom:none;}
@@ -148,6 +182,8 @@
     </div>
   </div>
 
+  <div class="crt-panel status-strip" id="status-strip"></div>
+
   <div class="section-label">TOTAL CAPITAL — TREND</div>
   <div class="crt-panel trend-card">
     <div class="trend-header">
@@ -167,6 +203,23 @@
   <div class="crt-panel capital-card">
     <div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
     <div id="capital-bars"></div>
+  </div>
+
+  <div class="section-label">OPEN POSITIONS — OPTIONS</div>
+  <div class="crt-panel" style="padding:14px 16px;">
+    <div class="pos-flags" id="pos-flags"></div>
+    <div class="pos-table">
+      <div class="pos-row header">
+        <div>TICKER</div><div>STRIKE</div><div>MARK</div><div>P/L</div><div>STOP</div><div class="pos-target-col">TARGET</div>
+      </div>
+      <div id="pos-rows"></div>
+    </div>
+  </div>
+
+  <div class="section-label">SECTOR CONCENTRATION — OPTIONS (PILLAR VI)</div>
+  <div class="crt-panel" style="padding:16px 18px;">
+    <div class="sector-flags" id="sector-flags"></div>
+    <div id="sector-bars"></div>
   </div>
 
   <div class="section-label">WEEKLY WATCH — EARNINGS &amp; CATALYSTS</div>
@@ -219,6 +272,16 @@
   const LED_SEGMENTS = 40;
   const OPTIONS_MOVE_PCT = 5;
   const CRYPTO_MOVE_PCT = 3;
+
+  // Ticker -> sector, matching the curated options watchlist (Pillar VI check).
+  const SECTOR_MAP = {
+    TSLA: "EV", RIVN: "EV", QS: "EV",
+    ENPH: "Solar", FSLR: "Solar", SHLS: "Solar", RUN: "Solar", CSIQ: "Solar", NXT: "Solar",
+    COP: "Oil & Gas", EQT: "Oil & Gas", HAL: "Oil & Gas", OXY: "Oil & Gas", DVN: "Oil & Gas", SLB: "Oil & Gas",
+    AWK: "Water", XYL: "Water", WTRG: "Water", AWR: "Water", MSEX: "Water", YORW: "Water", BMI: "Water", ROP: "Water",
+    NEE: "Utilities"
+  };
+  const MAX_OPEN_POSITIONS = 4; // Pillar III cap
 
   const notifState = { optionsMarks: {}, cryptoPrices: {}, flags: new Set() };
 
@@ -347,6 +410,27 @@
       if (total > 0 && hit) seg.classList.add(`on-${hit.pool}`);
       bar.appendChild(seg);
     }
+  }
+
+  function renderStatusStrip(snapshots) {
+    const wrap = document.getElementById("status-strip");
+    const order = ["options", "crypto", "yield"];
+    wrap.innerHTML = order.map(pool => {
+      const row = snapshots.find(s => s.pool === pool);
+      if (!row) {
+        return `<div class="status-item"><span class="pool-name">${pool.toUpperCase()}</span><span class="dot warn"></span><span class="status-age warn">no data</span></div>`;
+      }
+      const age = minutesAgo(row.updated_at);
+      const stale = age > STALE_AFTER_MIN;
+      const ageText = age < 60 ? `${age.toFixed(0)}m ago` : `${(age / 60).toFixed(1)}h ago`;
+      return `
+        <div class="status-item">
+          <span class="pool-name">${pool.toUpperCase()}</span>
+          <span class="dot ${stale ? "warn" : "ok"}"></span>
+          <span class="status-age ${stale ? "warn" : ""}">${stale ? "STALE · " : ""}${ageText}</span>
+        </div>
+      `;
+    }).join("");
   }
 
   function renderTrend(rows) {
@@ -530,6 +614,94 @@
     }).join("");
   }
 
+  function renderPositionsTable(snapshots) {
+    const optionsRow = snapshots.find(s => s.pool === "options");
+    const positions = optionsRow?.data?.open_positions || [];
+    const flagsWrap = document.getElementById("pos-flags");
+    const rowsWrap = document.getElementById("pos-rows");
+
+    const flags = [];
+    const noStop = positions.filter(p => !p.stop_loss_active);
+    if (noStop.length) {
+      flags.push(`NO STOP-LOSS: ${noStop.map(p => `${p.ticker} ${p.strike}`).join(", ")}`);
+    }
+    if (positions.length > MAX_OPEN_POSITIONS) {
+      flags.push(`PILLAR III: ${positions.length} open positions exceeds ${MAX_OPEN_POSITIONS}-position cap`);
+    }
+    flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
+
+    if (!positions.length) {
+      rowsWrap.innerHTML = `<div style="padding:10px 4px;color:var(--text-dim);font-size:11px;">no open options positions</div>`;
+      return;
+    }
+
+    rowsWrap.innerHTML = positions.map(p => {
+      const pnlUp = (p.pnl_dollar ?? 0) >= 0;
+      const pnlClass = pnlUp ? "pos-pnl-up" : "pos-pnl-down";
+      const pnlSign = pnlUp ? "+" : "";
+      const pnlText = (p.pnl_dollar != null && p.pnl_pct != null)
+        ? `${pnlSign}$${Math.abs(p.pnl_dollar)} (${pnlSign}${p.pnl_pct}%)`
+        : "—";
+      const stopHtml = p.stop_loss_active
+        ? `<span class="pos-stop-ok">GTC ✓</span>`
+        : `<span class="pos-stop-warn">NO STOP</span>`;
+      const targetHtml = p.profit_target
+        ? `$${p.profit_target}${p.mark_price != null ? ` (${Math.round((p.mark_price / p.profit_target) * 100)}%)` : ""}`
+        : "—";
+      return `
+        <div class="pos-row">
+          <div class="pos-ticker">${p.ticker}</div>
+          <div>${p.strike ?? "—"}</div>
+          <div>${p.mark_price != null ? "$" + p.mark_price : "—"}</div>
+          <div class="${pnlClass}">${pnlText}</div>
+          <div>${stopHtml}</div>
+          <div class="pos-target-col pos-target">${targetHtml}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderSectorConcentration(snapshots) {
+    const optionsRow = snapshots.find(s => s.pool === "options");
+    const positions = optionsRow?.data?.open_positions || [];
+    const flagsWrap = document.getElementById("sector-flags");
+    const barsWrap = document.getElementById("sector-bars");
+
+    if (!positions.length) {
+      flagsWrap.innerHTML = "";
+      barsWrap.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">no open positions to assess</div>`;
+      return;
+    }
+
+    const counts = {};
+    positions.forEach(p => {
+      const sector = SECTOR_MAP[p.ticker] || "Other";
+      counts[sector] = (counts[sector] || 0) + 1;
+    });
+    const sectors = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const total = positions.length;
+
+    const flags = [];
+    if (sectors.length < 2) {
+      flags.push(`PILLAR VI: all open positions in a single sector (${sectors[0][0]}) — diversify across ≥2 uncorrelated sectors`);
+    }
+    sectors.forEach(([sector, count]) => {
+      if (count >= 3) flags.push(`PILLAR VI: ${count} positions share ${sector} — concentration risk`);
+    });
+    flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
+
+    barsWrap.innerHTML = sectors.map(([sector, count]) => {
+      const pct = (count / total) * 100;
+      return `
+        <div class="sector-row">
+          <div class="sector-label">${sector}</div>
+          <div class="sector-bar-track"><div class="sector-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
+          <div class="sector-count">${count} pos · ${pct.toFixed(0)}%</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   function renderWatch(items) {
     const wrap = document.getElementById("watch-list");
     const sorted = [...items].sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
@@ -584,10 +756,13 @@
       ]);
       checkAlerts(snapshots);
       renderMaster(snapshots);
+      renderStatusStrip(snapshots);
       renderTrend(history);
       renderGauges(snapshots, watch);
       renderPools(snapshots);
       renderCapital(snapshots);
+      renderPositionsTable(snapshots);
+      renderSectorConcentration(snapshots);
       renderActions(actions);
       renderWatch(watch);
       renderNews(news);
