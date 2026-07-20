@@ -1,47 +1,43 @@
 # TFF://TERMINAL — Platform
 
-Live-data dashboard for the Trading For Freedom system. Split honestly by
-what can and can't run unattended:
+Live-data dashboard for the Trading For Freedom system, hosted at
+https://themr-k.github.io/tff-platform/
+
+## What updates automatically vs manually
 
 | Pool | Update mechanism |
 |---|---|
-| Options | Pushed manually by Alfred (Claude) during chat sessions, via the Robinhood Agentic MCP connector. No public Robinhood stocks/options API exists, so this can't run as an unattended bot. |
-| Crypto | Real bot — GitHub Actions polls the official Robinhood Crypto Trading API every 30 min. |
-| Yield | Real bot — GitHub Actions polls Coinbase's official API + reads Aave V3 on-chain, every 30 min. |
+| Options | Pushed by Alfred (Claude) during chat sessions via the Robinhood Agentic MCP — no public Robinhood options API exists, so this can't run unattended. |
+| Crypto | Real bot — GitHub Actions polls the official Robinhood Crypto API every 30 min. |
+| Yield | Real bot — GitHub Actions polls Coinbase + reads Aave V3 on-chain every 30 min (currently blocked on `AAVE_WALLET_ADDRESS` secret, pending wallet setup). |
+| Weekly Watch / Market News | Pushed by Claude during sessions, using earnings-calendar and news lookups. |
+| Capital History | Fully automatic — a Postgres trigger logs a combined-capital snapshot every time any pool table updates. |
 
-## Setup — do this in order
+## Dashboard sections
+Combined capital + pool-share LED bar, system gauges (buying power, crypto
+deployed %, next catalyst countdown), per-pool cards, total capital trend
+chart, capital allocation breakdown, weekly watch (earnings/catalysts),
+market news, priority action flags, and browser notifications for price
+moves (tab must stay open).
 
-### 1. Supabase (the database)
-1. Create a free project at supabase.com
-2. Open the SQL editor, paste in `supabase/schema.sql`, run it
-3. Copy your Project URL and two keys: `anon` (public) and `service_role` (secret)
+## Repo layout
+- `index.html` — the live dashboard (served from repo root via GitHub Pages)
+- `scripts/poll-crypto.js` — Robinhood Crypto poller (scheduled)
+- `scripts/poll-yield.js` — Coinbase + Aave poller (scheduled)
+- `scripts/push-options-snapshot.js` — reference script for pushing options data from a local Node environment; in practice this is currently done via direct SQL from within Claude sessions
+- `scripts/lib/supabase-write.js` — shared Supabase write helper
+- `supabase/schema.sql` — full DB schema, kept in sync with what's live
+- `.github/workflows/poll.yml` — the 30-min cron for crypto/yield
 
-### 2. GitHub repo
-1. Create a new repo (private is fine), push this whole folder to it
-2. Go to Settings → Secrets and variables → Actions, add:
-   - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
-   - `RH_CRYPTO_API_KEY`, `RH_CRYPTO_PRIVATE_KEY_B64` (from Robinhood's Crypto API Credentials Portal — desktop browser only)
-   - `COINBASE_API_KEY`, `COINBASE_API_SECRET` (Coinbase Advanced Trade API, read-only scope is enough)
-   - `AAVE_WALLET_ADDRESS` (the wallet you supply to Aave V3 from)
-3. Go to the Actions tab, enable workflows if prompted. The poller runs every 30 min automatically; you can also hit "Run workflow" manually to test it immediately.
+## Setup (already completed)
+Supabase project created, all 5 tables + trigger live, GitHub secrets set
+(`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `RH_CRYPTO_API_KEY`,
+`RH_CRYPTO_PRIVATE_KEY_B64`, `COINBASE_API_KEY`, `COINBASE_API_SECRET`),
+GitHub Pages live. Only `AAVE_WALLET_ADDRESS` remains unset, pending
+self-custody wallet setup for the Yield pool.
 
-### 3. Frontend hosting
-1. In `public/index.html`, replace `SUPABASE_URL` and `SUPABASE_ANON_KEY` (the public one — never put `service_role` here) with your real values
-2. Deploy `public/` to GitHub Pages, Vercel, or Netlify (any static host works — it's one HTML file with no build step)
-3. That URL is now your live dashboard — bookmark it, refreshes itself every 30 seconds
-
-### 4. Options pool sync
-No setup needed on your end — during any Claude session where I run "Position Review"
-or similar, I'll pull live data from the Robinhood Agentic MCP and push it into the
-same Supabase table via `scripts/push-options-snapshot.js`, so it shows up on the
-same dashboard next to the live Crypto/Yield numbers.
-
-## Security notes
-- `service_role` key = full write access. Only ever goes in GitHub Actions secrets. Never in frontend code, never committed to the repo.
-- `anon` key = read-only by design (Row Level Security policies in `schema.sql` block writes from it). Safe to put in `public/index.html`.
-- Robinhood Crypto private key: generated locally per their docs, never share it, treat it like a password.
-
-## Known things to double check before going live
-- Robinhood Crypto API and Coinbase Advanced Trade API auth details can shift — verify against current docs linked in the script comments before your first real run.
-- The Aave subgraph URL in `poll-yield.js` may need updating to whatever endpoint Aave currently publishes.
-- Cron is set to every 30 min, all day — trim `.github/workflows/poll.yml` to market hours if you want to save Action minutes (free tier is generous but not infinite).
+## Known open items
+- USDG pricing gap in `poll-crypto.js` — actively being debugged (holdings
+  lookup sometimes omits USDG from the API response; debug logging added)
+- RIVN/HAL options positions require manual stop-loss placement — no
+  live GTC stop currently active on either
