@@ -4,7 +4,15 @@ name: TFF Pool Poller
 # runs unattended. Options pool is intentionally NOT here — it can only be
 # refreshed from an active Claude/Robinhood-MCP session (see
 # scripts/push-options-snapshot.js).
+name: TFF Pool Poller
 
+# Crypto and Yield pools have real, official APIs, so those bots genuinely
+# run unattended. Merger Arbitrage prices/spreads are also fully automated
+# here, but the underlying holdings list (data/merger-holdings.json) is
+# maintained by hand at position-open — Robinhood has no direct API for
+# equity positions. Options pool is intentionally NOT here — it can only be
+# refreshed from an active Claude/Robinhood-MCP session (see
+# scripts/push-options-snapshot.js).
 on:
   schedule:
     - cron: "*/30 * * * *"   # every 30 minutes, all day — trim to market hours if you prefer
