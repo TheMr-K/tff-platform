@@ -7,10 +7,11 @@ name: TFF Pool Poller
 # equity positions. Options pool is intentionally NOT here — it can only be
 # refreshed from an active Claude/Robinhood-MCP session (see
 # scripts/push-options-snapshot.js).
+
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes, all day — trim to market hours if you prefer
-  workflow_dispatch: {}       # lets you trigger a manual run from the Actions tab
+    - cron: "*/30 * * * *" # every 30 minutes, all day — trim to market hours if you prefer
+  workflow_dispatch: {} # lets you trigger a manual run from the Actions tab
 
 jobs:
   poll-crypto:
@@ -45,7 +46,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
-poll-merger:
+  poll-merger:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
