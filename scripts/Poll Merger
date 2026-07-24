@@ -1,0 +1,215 @@
+// Polls current market prices for open Merger Arbitrage positions and writes
+// a fresh snapshot to Supabase. Runs on a schedule via GitHub Actions — see
+// .github/workflows/poll-merger.yml
+//
+// Robinhood does not expose a direct API for equities/options positions
+// (unlike its Crypto Trading API) — that data is only reachable through the
+// Agentic Trading MCP connector, which requires a live Claude session. So
+// this script does NOT know what you hold on its own. Positions are read
+// from data/merger-holdings.json, which you update by hand whenever you
+// open or close a position (matches the "Approve" gate in the Pillar
+// framework — you're already making that decision deliberately).
+//
+// What this script DOES fully automate: pulling live prices for whatever's
+// in that file, and recalculating spread / annualized return / days-to-close
+// every run — so the numbers never go stale even though the holdings list
+// itself is manual.
+//
+// Holdings file schema (data/merger-holdings.json):
+// {
+//   "pool_size": 500,
+//   "holdings": [
+//     {
+//       "ticker": "EXAMPLE",
+//       "deal_price": 45.00,          // agreed cash acquisition price
+//       "entry_price": 42.10,         // what you paid per share
+//       "quantity": 5,
+//       "outside_date": "2026-12-31", // contractual deal deadline
+//       "expected_close_date": "2026-10-15", // optional, best estimate
+//       "stop_loss_price": 40.00,     // optional but strongly recommended
+//       "notes": "All-cash deal, DOJ cleared without second request"
+//     }
+//   ]
+// }
+//
+// Required env vars (set as GitHub Actions secrets):
+// FINNHUB_API_KEY - free at https://finnhub.io/register (60 calls/min free tier)
+// SUPABASE_URL, SUPABASE_SERVICE_KEY
+
+const fs = require("fs");
+const path = require("path");
+const { writeSnapshot, addPriorityAction } = require("./lib/supabase-write");
+
+const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
+const HOLDINGS_PATH = path.join(__dirname, "..", "data", "merger-holdings.json");
+
+// A deal is flagged once its outside date falls inside this window with no
+// confirmed close — gives you a heads-up before the contractual deadline
+// arrives with nothing resolved.
+const OUTSIDE_DATE_WARNING_DAYS = 28;
+
+// If the spread widens by more than this, relative to its value at entry,
+// with no close — that's the Pillar IV early-warning trigger.
+const SPREAD_WIDEN_ALERT_PCT = 30;
+
+function loadHoldings() {
+  if (!fs.existsSync(HOLDINGS_PATH)) {
+    throw new Error(`Holdings file not found at ${HOLDINGS_PATH}`);
+  }
+  const raw = JSON.parse(fs.readFileSync(HOLDINGS_PATH, "utf-8"));
+  return {
+    poolSize: raw.pool_size ?? 500,
+    holdings: raw.holdings ?? [],
+  };
+}
+
+async function getQuote(ticker) {
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${FINNHUB_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Finnhub quote failed for ${ticker}: ${res.status}`);
+  }
+  const data = await res.json();
+  // Finnhub returns all-zero fields for an invalid/unrecognized symbol
+  // instead of an HTTP error — treat that as "no data," not a real $0 price.
+  if (!data || data.c === 0) return null;
+  return data.c;
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const ms = new Date(dateStr) - new Date();
+  return Math.ceil(ms / 86400000);
+}
+
+async function main() {
+  if (!FINNHUB_KEY) {
+    throw new Error("Missing FINNHUB_API_KEY.");
+  }
+
+  const { poolSize, holdings } = loadHoldings();
+  const priorityActions = [];
+  const positions = [];
+
+  for (const h of holdings) {
+    let currentPrice = null;
+    try {
+      currentPrice = await getQuote(h.ticker);
+    } catch (err) {
+      console.error(`Quote failed for ${h.ticker}, continuing:`, err.message);
+    }
+
+    const daysToClose = daysUntil(h.expected_close_date || h.outside_date);
+
+    if (currentPrice == null) {
+      priorityActions.push({
+        priority: "med",
+        message: `${h.ticker}: no live quote returned — check ticker or deal status manually.`,
+      });
+      positions.push({
+        ticker: h.ticker,
+        deal_price: h.deal_price,
+        current_price: null,
+        spread_pct: null,
+        annualized_return_pct: null,
+        days_to_close: daysToClose,
+        outside_date: h.outside_date,
+        entry_price: h.entry_price,
+        quantity: h.quantity,
+        pnl_dollar: null,
+        pnl_pct: null,
+        stop_loss_price: h.stop_loss_price ?? null,
+        stop_loss_active: h.stop_loss_price != null,
+      });
+      continue;
+    }
+
+    const spreadPct = +(((h.deal_price - currentPrice) / currentPrice) * 100).toFixed(2);
+    const annualizedReturnPct =
+      daysToClose && daysToClose > 0 ? +(spreadPct / (daysToClose / 365)).toFixed(2) : null;
+
+    const costBasis = h.entry_price * h.quantity;
+    const currentValue = currentPrice * h.quantity;
+    const pnlDollar = +(currentValue - costBasis).toFixed(2);
+    const pnlPct = h.entry_price
+      ? +(((currentPrice - h.entry_price) / h.entry_price) * 100).toFixed(2)
+      : null;
+
+    if (h.stop_loss_price == null) {
+      priorityActions.push({
+        priority: "high",
+        message: `${h.ticker}: no stop-loss price on file (Pillar IV) — define one in merger-holdings.json.`,
+      });
+    }
+
+    const entrySpreadPct = h.entry_price
+      ? +(((h.deal_price - h.entry_price) / h.entry_price) * 100).toFixed(2)
+      : null;
+    if (
+      entrySpreadPct != null &&
+      entrySpreadPct > 0 &&
+      spreadPct > entrySpreadPct * (1 + SPREAD_WIDEN_ALERT_PCT / 100)
+    ) {
+      priorityActions.push({
+        priority: "high",
+        message: `${h.ticker}: spread widened from ${entrySpreadPct}% at entry to ${spreadPct}% now, with no close — Pillar IV early-warning trigger, reassess deal risk.`,
+      });
+    }
+
+    if (daysToClose != null && daysToClose >= 0 && daysToClose <= OUTSIDE_DATE_WARNING_DAYS) {
+      priorityActions.push({
+        priority: "med",
+        message: `${h.ticker}: outside date in ${daysToClose} day(s) with no confirmed close — check for an updated deal timeline.`,
+      });
+    }
+    if (daysToClose != null && daysToClose < 0) {
+      priorityActions.push({
+        priority: "high",
+        message: `${h.ticker}: outside date has passed — deal should have closed or been extended, verify status manually.`,
+      });
+    }
+
+    positions.push({
+      ticker: h.ticker,
+      deal_price: h.deal_price,
+      current_price: currentPrice,
+      spread_pct: spreadPct,
+      annualized_return_pct: annualizedReturnPct,
+      days_to_close: daysToClose,
+      outside_date: h.outside_date,
+      entry_price: h.entry_price,
+      quantity: h.quantity,
+      pnl_dollar: pnlDollar,
+      pnl_pct: pnlPct,
+      stop_loss_price: h.stop_loss_price ?? null,
+      stop_loss_active: h.stop_loss_price != null,
+    });
+  }
+
+  const deployed = +positions
+    .reduce((sum, p) => sum + (p.current_price != null ? p.current_price * p.quantity : 0), 0)
+    .toFixed(2);
+  const pctDeployed = +((deployed / poolSize) * 100).toFixed(1);
+
+  const snapshot = {
+    pool_size: poolSize,
+    deployed,
+    pct_deployed: pctDeployed,
+    open_positions: positions.length,
+    positions,
+    checked_at: new Date().toISOString(),
+  };
+
+  await writeSnapshot("merger", snapshot, "agentic_bot");
+
+  for (const a of priorityActions) {
+    await addPriorityAction("merger", a.priority, a.message);
+  }
+
+  console.log("Merger arb poll complete:", snapshot);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
