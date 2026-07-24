@@ -4,779 +4,883 @@
 <meta charset="UTF-8">
 <title>TFF://TERMINAL</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
-  :root{
-    --bg:#050503; --panel:#0c0a06; --panel-border:#3a2c0f;
-    --green:#39ff6a; --green-glow:rgba(57,255,106,0.4);
-    --amber:#ffb020; --amber-glow:rgba(255,176,32,0.55);
-    --blue:#4bd6ff;
-    --red:#ff4b4b; --text-dim:#8a7a4a;
-    --grid-line:rgba(255,176,32,0.07);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;background:var(--bg);color:var(--amber);font-family:'IBM Plex Mono',monospace;min-height:100vh;}
-  body::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(to bottom,rgba(255,176,32,.03) 0px,rgba(255,176,32,.03) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:999;mix-blend-mode:overlay;}
-  .wrap{max-width:1400px;margin:0 auto;padding:20px 24px 60px;}
-  .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--panel-border);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
-  .brand h1{margin:0;font-size:26px;letter-spacing:4px;color:var(--green);text-shadow:0 0 14px var(--green-glow);}
-  .brand h1 span{color:var(--amber);text-shadow:0 0 14px var(--amber-glow);}
-  .brand .glyph{font-size:11px;color:var(--text-dim);letter-spacing:3px;}
-  .header-right{display:flex;align-items:center;gap:12px;}
-  .sync-status{font-size:10px;color:var(--text-dim);text-align:right;letter-spacing:1px;}
-  .sync-status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 1.8s ease-in-out infinite;}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-  .notif-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:inherit;font-size:10px;letter-spacing:1px;padding:6px 10px;cursor:pointer;white-space:nowrap;}
-  .notif-btn.on{color:var(--green);border-color:var(--green);}
-  .section-label{font-size:11px;letter-spacing:3px;color:var(--amber);margin:26px 0 10px;display:flex;align-items:center;gap:10px;}
-  .section-label::after{content:"";flex:1;height:1px;background:var(--panel-border);}
-  .crt-panel{
-    position:relative;background-color:var(--panel);border:1px solid var(--panel-border);
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size:14px 14px;
-  }
-  .crt-panel::before,.crt-panel::after{content:"";position:absolute;width:12px;height:12px;pointer-events:none;}
-  .crt-panel::before{top:-1px;left:-1px;border-top:2px solid var(--amber);border-left:2px solid var(--amber);}
-  .crt-panel::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--amber);border-right:2px solid var(--amber);}
-  .master-panel{padding:22px 24px;margin-top:4px;}
-  .master-label{font-size:11px;letter-spacing:3px;color:var(--text-dim);}
-  .master-num{
-    font-size:44px;font-weight:700;color:var(--amber);letter-spacing:2px;
-    text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16px;
-  }
-  .led-bar{display:flex;gap:3px;height:26px;align-items:flex-end;}
-  .led-seg{flex:1;height:100%;background:#1c1508;border:1px solid #241c0c;}
-  .led-seg.on-options{background:var(--green);box-shadow:0 0 6px var(--green-glow);}
-  .led-seg.on-crypto{background:var(--amber);box-shadow:0 0 6px var(--amber-glow);}
-  .led-seg.on-yield{background:var(--blue);box-shadow:0 0 6px rgba(75,214,255,.5);}
-  .led-legend{display:flex;gap:20px;margin-top:10px;font-size:10px;letter-spacing:1px;color:var(--text-dim);}
-  .led-legend span::before{content:"■ ";}
-  .led-legend .lg-options::before{color:var(--green);}
-  .led-legend .lg-crypto::before{color:var(--amber);}
-  .led-legend .lg-yield::before{color:var(--blue);}
-
-  .status-strip{display:flex;gap:0;flex-wrap:wrap;padding:10px 16px;margin-top:6px;}
-  .status-item{flex:1;min-width:100px;padding:4px 12px;font-size:10px;letter-spacing:1px;border-right:1px solid var(--panel-border);}
-  .status-item:last-child{border-right:none;}
-  .status-item .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;}
-  .status-item .dot.ok{background:var(--green);box-shadow:0 0 5px var(--green-glow);}
-  .status-item .dot.warn{background:var(--red);box-shadow:0 0 5px rgba(255,75,75,.6);}
-  .status-item .pool-name{color:var(--text-dim);display:block;margin-bottom:3px;}
-  .status-item .status-age{color:#e8d9b8;}
-  .status-item .status-age.warn{color:var(--red);}
-
-  .gauge-grid{display:grid;grid-template-columns:repeat(3,minmax(88px,120px));gap:8px;}
-  .gauge-card{padding:8px 9px;aspect-ratio:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
-  .gauge-label{font-size:7px;letter-spacing:1px;color:var(--text-dim);line-height:1.2;}
-  .gauge-num{font-size:15px;font-weight:600;color:var(--green);text-shadow:0 0 6px var(--green-glow);margin:3px 0 5px;}
-  .gauge-bar-track{height:5px;background:#1c1508;border:1px solid var(--panel-border);}
-  .gauge-bar-fill{height:100%;background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
-  .gauge-sub{font-size:7px;color:var(--text-dim);margin-top:4px;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .pool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  @media (max-width:1000px){.pool-grid{grid-template-columns:1fr;}}
-  .pool-card{padding:16px;}
-  .pool-card h2{margin:0 0 8px;font-size:14px;letter-spacing:2px;color:var(--green);}
-  .pool-card.crypto h2{color:var(--amber);}
-  .pool-card.yield h2{color:var(--blue);}
-  .pool-val{font-size:26px;font-weight:600;text-shadow:0 0 8px currentColor;}
-  .stale{color:var(--red)!important;}
-  .fresh{color:var(--green);}
-  .pool-card.crypto .fresh{color:var(--amber);}
-  .pool-card.yield .fresh{color:var(--blue);}
-  .pool-updated{font-size:10px;color:var(--text-dim);margin:6px 0 10px;}
-  .pool-line{font-size:11px;color:#e8d9b8;margin:4px 0;line-height:1.5;}
-  .pool-line .k{color:var(--text-dim);margin-right:6px;}
-  .pool-flag{font-size:10px;letter-spacing:1px;margin-top:8px;padding:4px 8px;border:1px solid;display:inline-block;}
-  .pool-flag.warn{color:var(--red);border-color:var(--red);}
-  .pool-flag.ok{color:var(--green);border-color:var(--green);}
-  .trend-card{padding:18px 20px 14px;}
-  .trend-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:8px;}
-  .trend-title{font-size:11px;letter-spacing:2px;color:var(--text-dim);}
-  .trend-total{font-size:30px;font-weight:700;color:var(--green);text-shadow:0 0 8px var(--green-glow);}
-  .trend-delta{font-size:12px;margin-left:10px;}
-  .trend-delta.up{color:var(--green);}
-  .trend-delta.down{color:var(--red);}
-  .trend-chart-wrap{height:150px;margin-top:8px;}
-  .trend-axis{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-dim);letter-spacing:.5px;}
-  .trend-caption{font-size:9px;color:var(--text-dim);margin-top:8px;letter-spacing:.5px;}
-  .capital-card{padding:18px 20px;}
-  .capital-total{font-size:13px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
-  .capital-total .num{color:var(--amber);font-size:20px;font-weight:600;margin-left:8px;text-shadow:0 0 8px var(--amber-glow);}
-  .cap-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
-  .cap-label{width:64px;letter-spacing:1px;flex-shrink:0;}
-  .cap-label.options{color:var(--green);}
-  .cap-label.crypto{color:var(--amber);}
-  .cap-label.yield{color:var(--blue);}
-  .cap-bar-track{flex:1;height:16px;background:#1c1508;border:1px solid var(--panel-border);overflow:hidden;}
-  .cap-bar-fill{height:100%;transition:width .6s ease;}
-  .cap-bar-fill.options{background:linear-gradient(90deg,var(--green-glow),var(--green));}
-  .cap-bar-fill.crypto{background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
-  .cap-bar-fill.yield{background:linear-gradient(90deg,rgba(75,214,255,.35),var(--blue));}
-  .cap-value{width:90px;text-align:right;color:#e8d9b8;flex-shrink:0;}
-  .cap-pct{width:44px;text-align:right;color:var(--text-dim);flex-shrink:0;}
-
-  .pos-flags,.sector-flags{margin-bottom:10px;}
-  .pos-flag-warn{color:var(--red);font-size:10px;letter-spacing:.5px;padding:6px 10px;border:1px solid var(--red);display:inline-block;margin:0 6px 6px 0;}
-  .pos-row{display:grid;grid-template-columns:70px 64px 74px 130px 90px 100px;gap:8px;padding:9px 10px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
-  .pos-row.header{color:var(--text-dim);letter-spacing:1px;font-size:9px;}
-  .pos-row:last-child{border-bottom:none;}
-  .pos-ticker{color:var(--green);font-weight:600;}
-  .pos-pnl-up{color:var(--green);}
-  .pos-pnl-down{color:var(--red);}
-  .pos-stop-ok{color:var(--green);font-size:9px;letter-spacing:.5px;font-weight:600;}
-  .pos-stop-warn{color:var(--red);font-size:9px;letter-spacing:.5px;font-weight:700;}
-  .pos-target{font-size:10px;color:var(--text-dim);}
-  @media (max-width:700px){
-    .pos-row{grid-template-columns:58px 52px 58px 108px 78px;}
-    .pos-target-col{display:none;}
-  }
-
-  .sector-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
-  .sector-label{width:88px;letter-spacing:1px;flex-shrink:0;color:#e8d9b8;}
-  .sector-bar-track{flex:1;height:14px;background:#1c1508;border:1px solid var(--panel-border);overflow:hidden;}
-  .sector-bar-fill{height:100%;background:linear-gradient(90deg,var(--green-glow),var(--green));}
-  .sector-count{width:76px;text-align:right;color:var(--text-dim);flex-shrink:0;font-size:10px;}
-
-  .watch-row{display:grid;grid-template-columns:90px 70px 90px 1fr;gap:12px;padding:10px 14px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
-  .watch-row.header{color:var(--text-dim);letter-spacing:2px;font-size:9px;}
-  .watch-row:last-child{border-bottom:none;}
-  .watch-ticker{color:var(--green);font-weight:600;}
-  .watch-type{text-transform:uppercase;color:var(--text-dim);}
-  .watch-type.earnings{color:var(--amber);}
-  .watch-type.macro{color:var(--blue);}
-  .watch-date{color:#e8d9b8;}
-  .watch-desc{color:#e8d9b8;}
-  .unconfirmed{color:var(--red);font-size:9px;letter-spacing:1px;margin-left:6px;}
-  .news-row{padding:10px 14px;border-bottom:1px solid var(--panel-border);font-size:11px;}
-  .news-row:last-child{border-bottom:none;}
-  .news-ticker{color:var(--green);font-weight:600;margin-right:8px;}
-  .news-source{color:var(--text-dim);font-size:9px;letter-spacing:1px;}
-  .news-headline{color:#e8d9b8;margin-top:3px;}
-  .actions{margin-top:14px;}
-  .action-row{display:grid;grid-template-columns:60px 90px 1fr;gap:10px;padding:8px 12px;font-size:11px;border-bottom:1px solid var(--panel-border);}
-  .prio-high{color:var(--red);} .prio-med{color:var(--amber);} .prio-low{color:var(--text-dim);}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+:root{
+--bg:#050503; --panel:#0c0a06; --panel-border:#3a2c0f;
+--green:#39ff6a; --green-glow:rgba(57,255,106,0.4);
+--amber:#ffb020; --amber-glow:rgba(255,176,32,0.55);
+--blue:#4bd6ff;
+--violet:#b47aff; --violet-glow:rgba(180,122,255,0.5);
+--red:#ff4b4b; --text-dim:#8a7a4a;
+--grid-line:rgba(255,176,32,0.07);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--amber);font-family:'IBM Plex Mono',monospace;min-height:100vh;}
+body::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(to bottom,rgba(255,176,32,.03) 0px,rgba(255,176,32,.03) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:999;mix-blend-mode:overlay;}
+.wrap{max-width:1400px;margin:0 auto;padding:20px 24px 60px;}
+.header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--panel-border);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.brand h1{margin:0;font-size:26px;letter-spacing:4px;color:var(--green);text-shadow:0 0 14px var(--green-glow);}
+.brand h1 span{color:var(--amber);text-shadow:0 0 14px var(--amber-glow);}
+.brand .glyph{font-size:11px;color:var(--text-dim);letter-spacing:3px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.sync-status{font-size:10px;color:var(--text-dim);text-align:right;letter-spacing:1px;}
+.sync-status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.notif-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:inherit;font-size:10px;letter-spacing:1px;padding:6px 10px;cursor:pointer;white-space:nowrap;}
+.notif-btn.on{color:var(--green);border-color:var(--green);}
+.section-label{font-size:11px;letter-spacing:3px;color:var(--amber);margin:26px 0 10px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:"";flex:1;height:1px;background:var(--panel-border);}
+.crt-panel{
+position:relative;background-color:var(--panel);border:1px solid var(--panel-border);
+background-image:
+linear-gradient(var(--grid-line) 1px, transparent 1px),
+linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+background-size:14px 14px;
+}
+.crt-panel::before,.crt-panel::after{content:"";position:absolute;width:12px;height:12px;pointer-events:none;}
+.crt-panel::before{top:-1px;left:-1px;border-top:2px solid var(--amber);border-left:2px solid var(--amber);}
+.crt-panel::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--amber);border-right:2px solid var(--amber);}
+.master-panel{padding:22px 24px;margin-top:4px;}
+.master-label{font-size:11px;letter-spacing:3px;color:var(--text-dim);}
+.master-num{
+font-size:44px;font-weight:700;color:var(--amber);letter-spacing:2px;
+text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16px;
+}
+.led-bar{display:flex;gap:3px;height:26px;align-items:flex-end;}
+.led-seg{flex:1;height:100%;background:#1c1508;border:1px solid #241c0c;}
+.led-seg.on-options{background:var(--green);box-shadow:0 0 6px var(--green-glow);}
+.led-seg.on-merger{background:var(--violet);box-shadow:0 0 6px var(--violet-glow);}
+.led-seg.on-crypto{background:var(--amber);box-shadow:0 0 6px var(--amber-glow);}
+.led-seg.on-yield{background:var(--blue);box-shadow:0 0 6px rgba(75,214,255,.5);}
+.led-legend{display:flex;gap:20px;margin-top:10px;font-size:10px;letter-spacing:1px;color:var(--text-dim);flex-wrap:wrap;}
+.led-legend span::before{content:"■ ";}
+.led-legend .lg-options::before{color:var(--green);}
+.led-legend .lg-merger::before{color:var(--violet);}
+.led-legend .lg-crypto::before{color:var(--amber);}
+.led-legend .lg-yield::before{color:var(--blue);}
+.status-strip{display:flex;gap:0;flex-wrap:wrap;padding:10px 16px;margin-top:6px;}
+.status-item{flex:1;min-width:100px;padding:4px 12px;font-size:10px;letter-spacing:1px;border-right:1px solid var(--panel-border);}
+.status-item:last-child{border-right:none;}
+.status-item .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;}
+.status-item .dot.ok{background:var(--green);box-shadow:0 0 5px var(--green-glow);}
+.status-item .dot.warn{background:var(--red);box-shadow:0 0 5px rgba(255,75,75,.6);}
+.status-item .pool-name{color:var(--text-dim);display:block;margin-bottom:3px;}
+.status-item .status-age{color:#e8d9b8;}
+.status-item .status-age.warn{color:var(--red);}
+.gauge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,120px));gap:8px;}
+.gauge-card{padding:8px 9px;aspect-ratio:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
+.gauge-label{font-size:7px;letter-spacing:1px;color:var(--text-dim);line-height:1.2;}
+.gauge-num{font-size:15px;font-weight:600;color:var(--green);text-shadow:0 0 6px var(--green-glow);margin:3px 0 5px;}
+.gauge-bar-track{height:5px;background:#1c1508;border:1px solid var(--panel-border);}
+.gauge-bar-fill{height:100%;background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
+.gauge-sub{font-size:7px;color:var(--text-dim);margin-top:4px;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.pool-card{padding:16px;}
+.pool-card h2{margin:0 0 8px;font-size:14px;letter-spacing:2px;color:var(--green);}
+.pool-card.merger h2{color:var(--violet);}
+.pool-card.crypto h2{color:var(--amber);}
+.pool-card.yield h2{color:var(--blue);}
+.pool-val{font-size:26px;font-weight:600;text-shadow:0 0 8px currentColor;}
+.stale{color:var(--red)!important;}
+.fresh{color:var(--green);}
+.pool-card.merger .fresh{color:var(--violet);}
+.pool-card.crypto .fresh{color:var(--amber);}
+.pool-card.yield .fresh{color:var(--blue);}
+.pool-updated{font-size:10px;color:var(--text-dim);margin:6px 0 10px;}
+.pool-line{font-size:11px;color:#e8d9b8;margin:4px 0;line-height:1.5;}
+.pool-line .k{color:var(--text-dim);margin-right:6px;}
+.pool-flag{font-size:10px;letter-spacing:1px;margin-top:8px;padding:4px 8px;border:1px solid;display:inline-block;}
+.pool-flag.warn{color:var(--red);border-color:var(--red);}
+.pool-flag.ok{color:var(--green);border-color:var(--green);}
+.trend-card{padding:18px 20px 14px;}
+.trend-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:8px;}
+.trend-title{font-size:11px;letter-spacing:2px;color:var(--text-dim);}
+.trend-total{font-size:30px;font-weight:700;color:var(--green);text-shadow:0 0 8px var(--green-glow);}
+.trend-delta{font-size:12px;margin-left:10px;}
+.trend-delta.up{color:var(--green);}
+.trend-delta.down{color:var(--red);}
+.trend-chart-wrap{height:150px;margin-top:8px;}
+.trend-axis{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-dim);letter-spacing:.5px;}
+.trend-caption{font-size:9px;color:var(--text-dim);margin-top:8px;letter-spacing:.5px;}
+.capital-card{padding:18px 20px;}
+.capital-total{font-size:13px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
+.capital-total .num{color:var(--amber);font-size:20px;font-weight:600;margin-left:8px;text-shadow:0 0 8px var(--amber-glow);}
+.cap-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
+.cap-label{width:64px;letter-spacing:1px;flex-shrink:0;}
+.cap-label.options{color:var(--green);}
+.cap-label.merger{color:var(--violet);}
+.cap-label.crypto{color:var(--amber);}
+.cap-label.yield{color:var(--blue);}
+.cap-bar-track{flex:1;height:16px;background:#1c1508;border:1px solid var(--panel-border);overflow:hidden;}
+.cap-bar-fill{height:100%;transition:width .6s ease;}
+.cap-bar-fill.options{background:linear-gradient(90deg,var(--green-glow),var(--green));}
+.cap-bar-fill.merger{background:linear-gradient(90deg,rgba(180,122,255,.35),var(--violet));}
+.cap-bar-fill.crypto{background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
+.cap-bar-fill.yield{background:linear-gradient(90deg,rgba(75,214,255,.35),var(--blue));}
+.cap-value{width:90px;text-align:right;color:#e8d9b8;flex-shrink:0;}
+.cap-pct{width:44px;text-align:right;color:var(--text-dim);flex-shrink:0;}
+.pos-flags,.sector-flags{margin-bottom:10px;}
+.pos-flag-warn{color:var(--red);font-size:10px;letter-spacing:.5px;padding:6px 10px;border:1px solid var(--red);display:inline-block;margin:0 6px 6px 0;}
+.pos-row{display:grid;grid-template-columns:70px 64px 74px 130px 90px 100px;gap:8px;padding:9px 10px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
+.pos-row.header{color:var(--text-dim);letter-spacing:1px;font-size:9px;}
+.pos-row:last-child{border-bottom:none;}
+.pos-ticker{color:var(--green);font-weight:600;}
+.pos-pnl-up{color:var(--green);}
+.pos-pnl-down{color:var(--red);}
+.pos-stop-ok{color:var(--green);font-size:9px;letter-spacing:.5px;font-weight:600;}
+.pos-stop-warn{color:var(--red);font-size:9px;letter-spacing:.5px;font-weight:700;}
+.pos-target{font-size:10px;color:var(--text-dim);}
+@media (max-width:700px){
+.pos-row{grid-template-columns:58px 52px 58px 108px 78px;}
+.pos-target-col{display:none;}
+}
+.mpos-row{display:grid;grid-template-columns:64px 70px 78px 70px 100px;gap:8px;padding:9px 10px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
+.mpos-row.header{color:var(--text-dim);letter-spacing:1px;font-size:9px;}
+.mpos-row:last-child{border-bottom:none;}
+@media (max-width:700px){
+.mpos-row{grid-template-columns:56px 62px 68px 60px;}
+.mpos-close-col{display:none;}
+}
+.sector-row{display:flex;align-items:center;gap:12px;margin:10px 0;font-size:11px;}
+.sector-label{width:88px;letter-spacing:1px;flex-shrink:0;color:#e8d9b8;}
+.sector-bar-track{flex:1;height:14px;background:#1c1508;border:1px solid var(--panel-border);overflow:hidden;}
+.sector-bar-fill{height:100%;background:linear-gradient(90deg,var(--green-glow),var(--green));}
+.sector-count{width:76px;text-align:right;color:var(--text-dim);flex-shrink:0;font-size:10px;}
+.watch-row{display:grid;grid-template-columns:90px 70px 90px 1fr;gap:12px;padding:10px 14px;font-size:11px;border-bottom:1px solid var(--panel-border);align-items:center;}
+.watch-row.header{color:var(--text-dim);letter-spacing:2px;font-size:9px;}
+.watch-row:last-child{border-bottom:none;}
+.watch-ticker{color:var(--green);font-weight:600;}
+.watch-type{text-transform:uppercase;color:var(--text-dim);}
+.watch-type.earnings{color:var(--amber);}
+.watch-type.macro{color:var(--blue);}
+.watch-date{color:#e8d9b8;}
+.watch-desc{color:#e8d9b8;}
+.unconfirmed{color:var(--red);font-size:9px;letter-spacing:1px;margin-left:6px;}
+.news-row{padding:10px 14px;border-bottom:1px solid var(--panel-border);font-size:11px;}
+.news-row:last-child{border-bottom:none;}
+.news-ticker{color:var(--green);font-weight:600;margin-right:8px;}
+.news-source{color:var(--text-dim);font-size:9px;letter-spacing:1px;}
+.news-headline{color:#e8d9b8;margin-top:3px;}
+.actions{margin-top:14px;}
+.action-row{display:grid;grid-template-columns:60px 90px 1fr;gap:10px;padding:8px 12px;font-size:11px;border-bottom:1px solid var(--panel-border);}
+.prio-high{color:var(--red);} .prio-med{color:var(--amber);} .prio-low{color:var(--text-dim);}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="header">
-    <div class="brand">
-      <span class="glyph">// TRADING FOR FREEDOM — LIVE OPS TERMINAL</span>
-      <h1>TFF<span>://</span>TERMINAL</h1>
-    </div>
-    <div class="header-right">
-      <button class="notif-btn" id="notif-btn">🔔 ENABLE ALERTS</button>
-      <div class="sync-status" id="sync-status"><span class="dot"></span>connecting...</div>
-    </div>
-  </div>
+<div class="header">
+<div class="brand">
+<span class="glyph">// TRADING FOR FREEDOM — LIVE OPS TERMINAL</span>
+<h1>TFF<span>://</span>TERMINAL</h1>
+</div>
+<div class="header-right">
+<button class="notif-btn" id="notif-btn">🔔 ENABLE ALERTS</button>
+<div class="sync-status" id="sync-status"><span class="dot"></span>connecting...</div>
+</div>
+</div>
 
-  <div class="crt-panel master-panel">
-    <div class="master-label">COMBINED CAPITAL — ALL POOLS</div>
-    <div class="master-num" id="master-total">$—</div>
-    <div class="led-bar" id="led-bar"></div>
-    <div class="led-legend">
-      <span class="lg-options">OPTIONS</span>
-      <span class="lg-crypto">CRYPTO</span>
-      <span class="lg-yield">YIELD</span>
-    </div>
-  </div>
+<div class="crt-panel master-panel">
+<div class="master-label">COMBINED CAPITAL — ALL POOLS</div>
+<div class="master-num" id="master-total">$—</div>
+<div class="led-bar" id="led-bar"></div>
+<div class="led-legend">
+<span class="lg-options">OPTIONS</span>
+<span class="lg-merger">MERGER</span>
+<span class="lg-crypto">CRYPTO</span>
+<span class="lg-yield">YIELD</span>
+</div>
+</div>
 
-  <div class="crt-panel status-strip" id="status-strip"></div>
+<div class="crt-panel status-strip" id="status-strip"></div>
 
-  <div class="section-label">TOTAL CAPITAL — TREND</div>
-  <div class="crt-panel trend-card">
-    <div class="trend-header">
-      <div>
-        <div class="trend-title">OPTIONS + CRYPTO + YIELD, COMBINED</div>
-        <div><span class="trend-total" id="trend-total">$—</span><span class="trend-delta" id="trend-delta"></span></div>
-      </div>
-    </div>
-    <div class="trend-chart-wrap">
-      <svg id="trend-svg" viewBox="0 0 300 140" preserveAspectRatio="none" width="100%" height="100%"></svg>
-    </div>
-    <div class="trend-axis"><span id="trend-start-date">—</span><span id="trend-end-date">—</span></div>
-    <div class="trend-caption">history logs automatically every time any pool updates — sparse today, fills in over coming days</div>
-  </div>
+<div class="section-label">TOTAL CAPITAL — TREND</div>
+<div class="crt-panel trend-card">
+<div class="trend-header">
+<div>
+<div class="trend-title">OPTIONS + MERGER + CRYPTO + YIELD, COMBINED</div>
+<div><span class="trend-total" id="trend-total">$—</span><span class="trend-delta" id="trend-delta"></span></div>
+</div>
+</div>
+<div class="trend-chart-wrap">
+<svg id="trend-svg" viewBox="0 0 300 140" preserveAspectRatio="none" width="100%" height="100%"></svg>
+</div>
+<div class="trend-axis"><span id="trend-start-date">—</span><span id="trend-end-date">—</span></div>
+<div class="trend-caption">history logs automatically every time any pool updates — sparse today, fills in over coming days</div>
+</div>
 
-  <div class="section-label">CAPITAL ALLOCATION</div>
-  <div class="crt-panel capital-card">
-    <div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
-    <div id="capital-bars"></div>
-  </div>
+<div class="section-label">CAPITAL ALLOCATION</div>
+<div class="crt-panel capital-card">
+<div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
+<div id="capital-bars"></div>
+</div>
 
-  <div class="section-label">OPEN POSITIONS — OPTIONS</div>
-  <div class="crt-panel" style="padding:14px 16px;">
-    <div class="pos-flags" id="pos-flags"></div>
-    <div class="pos-table">
-      <div class="pos-row header">
-        <div>TICKER</div><div>STRIKE</div><div>MARK</div><div>P/L</div><div>STOP</div><div class="pos-target-col">TARGET</div>
-      </div>
-      <div id="pos-rows"></div>
-    </div>
-  </div>
+<div class="section-label">OPEN POSITIONS — OPTIONS</div>
+<div class="crt-panel" style="padding:14px 16px;">
+<div class="pos-flags" id="pos-flags"></div>
+<div class="pos-table">
+<div class="pos-row header">
+<div>TICKER</div><div>STRIKE</div><div>MARK</div><div>P/L</div><div>STOP</div><div class="pos-target-col">TARGET</div>
+</div>
+<div id="pos-rows"></div>
+</div>
+</div>
 
-  <div class="section-label">SECTOR CONCENTRATION — OPTIONS (PILLAR VI)</div>
-  <div class="crt-panel" style="padding:16px 18px;">
-    <div class="sector-flags" id="sector-flags"></div>
-    <div id="sector-bars"></div>
-  </div>
+<div class="section-label">OPEN POSITIONS — MERGER ARBITRAGE</div>
+<div class="crt-panel" style="padding:14px 16px;">
+<div class="mpos-flags" id="mpos-flags"></div>
+<div class="mpos-table">
+<div class="mpos-row header">
+<div>TICKER</div><div>SPREAD</div><div>ANNUAL.</div><div class="mpos-close-col">CLOSE</div><div>STOP</div>
+</div>
+<div id="mpos-rows"></div>
+</div>
+</div>
 
-  <div class="section-label">WEEKLY WATCH — EARNINGS &amp; CATALYSTS</div>
-  <div class="crt-panel watch-card">
-    <div class="watch-row header"><div>DATE</div><div>TICKER</div><div>TYPE</div><div>NOTE</div></div>
-    <div id="watch-list"></div>
-  </div>
+<div class="section-label">SECTOR CONCENTRATION — OPTIONS (PILLAR VI)</div>
+<div class="crt-panel" style="padding:16px 18px;">
+<div class="sector-flags" id="sector-flags"></div>
+<div id="sector-bars"></div>
+</div>
 
-  <div class="section-label">MARKET NEWS — WATCHLIST</div>
-  <div class="crt-panel news-card">
-    <div id="news-list"></div>
-  </div>
+<div class="section-label">WEEKLY WATCH — EARNINGS &amp; CATALYSTS</div>
+<div class="crt-panel watch-card">
+<div class="watch-row header"><div>DATE</div><div>TICKER</div><div>TYPE</div><div>NOTE</div></div>
+<div id="watch-list"></div>
+</div>
 
-  <div class="section-label">PRIORITY ACTIONS</div>
-  <div class="crt-panel actions" id="actions"></div>
+<div class="section-label">MARKET NEWS — WATCHLIST</div>
+<div class="crt-panel news-card">
+<div id="news-list"></div>
+</div>
 
-  <div class="section-label">SYSTEM GAUGES</div>
-  <div class="gauge-grid">
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">BUYING POWER — OPTIONS</div>
-      <div class="gauge-num" id="gauge-bp">—</div>
-      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-bp-bar" style="width:0%"></div></div>
-      <div class="gauge-sub">of $500 max</div>
-    </div>
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">CRYPTO DEPLOYED</div>
-      <div class="gauge-num" id="gauge-crypto">—</div>
-      <div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-crypto-bar" style="width:0%"></div></div>
-      <div class="gauge-sub" id="gauge-crypto-sub">of pool size</div>
-    </div>
-    <div class="crt-panel gauge-card">
-      <div class="gauge-label">NEXT CATALYST</div>
-      <div class="gauge-num" id="gauge-catalyst">—</div>
-      <div class="gauge-sub" id="gauge-catalyst-sub">—</div>
-    </div>
-  </div>
+<div class="section-label">PRIORITY ACTIONS</div>
+<div class="crt-panel actions" id="actions"></div>
 
-  <div class="section-label">POOLS</div>
-  <div class="pool-grid" id="pool-grid">
-    <div class="crt-panel pool-card options"><h2>OPTIONS</h2><div class="pool-val">—</div></div>
-    <div class="crt-panel pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
-    <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
-  </div>
+<div class="section-label">SYSTEM GAUGES</div>
+<div class="gauge-grid">
+<div class="crt-panel gauge-card">
+<div class="gauge-label">BUYING POWER — OPTIONS</div>
+<div class="gauge-num" id="gauge-bp">—</div>
+<div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-bp-bar" style="width:0%"></div></div>
+<div class="gauge-sub">of $500 max</div>
+</div>
+<div class="crt-panel gauge-card">
+<div class="gauge-label">MERGER ARB — ACTIVE DEALS</div>
+<div class="gauge-num" id="gauge-merger">—</div>
+<div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-merger-bar" style="width:0%"></div></div>
+<div class="gauge-sub" id="gauge-merger-sub">of pool size</div>
+</div>
+<div class="crt-panel gauge-card">
+<div class="gauge-label">CRYPTO DEPLOYED</div>
+<div class="gauge-num" id="gauge-crypto">—</div>
+<div class="gauge-bar-track"><div class="gauge-bar-fill" id="gauge-crypto-bar" style="width:0%"></div></div>
+<div class="gauge-sub" id="gauge-crypto-sub">of pool size</div>
+</div>
+<div class="crt-panel gauge-card">
+<div class="gauge-label">NEXT CATALYST</div>
+<div class="gauge-num" id="gauge-catalyst">—</div>
+<div class="gauge-sub" id="gauge-catalyst-sub">—</div>
+</div>
+</div>
+
+<div class="section-label">POOLS</div>
+<div class="pool-grid" id="pool-grid">
+<div class="crt-panel pool-card options"><h2>OPTIONS</h2><div class="pool-val">—</div></div>
+<div class="crt-panel pool-card merger"><h2>MERGER ARB</h2><div class="pool-val">—</div></div>
+<div class="crt-panel pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
+<div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
+</div>
+
 </div>
 
 <script>
-  const SUPABASE_URL = "https://hckhkzkjmurywcsfgxin.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_Sm5lhcYCs3KdSXWSGi4PmA_aCSf28fQ";
-  const STALE_AFTER_MIN = 45;
-  const LED_SEGMENTS = 40;
-  const OPTIONS_MOVE_PCT = 5;
-  const CRYPTO_MOVE_PCT = 3;
+const SUPABASE_URL = "https://hckhkzkjmurywcsfgxin.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Sm5lhcYCs3KdSXWSGi4PmA_aCSf28fQ";
+const STALE_AFTER_MIN = 45;
+const LED_SEGMENTS = 40;
+const OPTIONS_MOVE_PCT = 5;
+const CRYPTO_MOVE_PCT = 3;
 
-  // Ticker -> sector, matching the curated options watchlist (Pillar VI check).
-  const SECTOR_MAP = {
-    TSLA: "EV", RIVN: "EV", QS: "EV",
-    ENPH: "Solar", FSLR: "Solar", SHLS: "Solar", RUN: "Solar", CSIQ: "Solar", NXT: "Solar",
-    COP: "Oil & Gas", EQT: "Oil & Gas", HAL: "Oil & Gas", OXY: "Oil & Gas", DVN: "Oil & Gas", SLB: "Oil & Gas",
-    AWK: "Water", XYL: "Water", WTRG: "Water", AWR: "Water", MSEX: "Water", YORW: "Water", BMI: "Water", ROP: "Water",
-    NEE: "Utilities"
-  };
-  const MAX_OPEN_POSITIONS = 4; // Pillar III cap
+// Ticker -> sector, matching the curated options watchlist (Pillar VI check).
+const SECTOR_MAP = {
+TSLA: "EV", RIVN: "EV", QS: "EV",
+ENPH: "Solar", FSLR: "Solar", SHLS: "Solar", RUN: "Solar", CSIQ: "Solar", NXT: "Solar",
+COP: "Oil & Gas", EQT: "Oil & Gas", HAL: "Oil & Gas", OXY: "Oil & Gas", DVN: "Oil & Gas", SLB: "Oil & Gas",
+AWK: "Water", XYL: "Water", WTRG: "Water", AWR: "Water", MSEX: "Water", YORW: "Water", BMI: "Water", ROP: "Water",
+NEE: "Utilities"
+};
+const MAX_OPEN_POSITIONS = 4; // Pillar III cap
+const POOL_ORDER = ["options", "merger", "crypto", "yield"];
 
-  const notifState = { optionsMarks: {}, cryptoPrices: {}, flags: new Set() };
+const notifState = { optionsMarks: {}, cryptoPrices: {}, flags: new Set() };
 
-  function notify(title, body) {
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      try { new Notification(title, { body }); } catch (e) { console.log(title, body); }
-    }
-  }
+function notify(title, body) {
+if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+try { new Notification(title, { body }); } catch (e) { console.log(title, body); }
+}
+}
 
-  function updateNotifBtn() {
-    const btn = document.getElementById("notif-btn");
-    if (typeof Notification === "undefined") {
-      btn.textContent = "ALERTS UNSUPPORTED";
-      btn.disabled = true;
-      return;
-    }
-    if (Notification.permission === "granted") {
-      btn.textContent = "🔔 ALERTS ON";
-      btn.classList.add("on");
-    } else {
-      btn.textContent = "🔔 ENABLE ALERTS";
-      btn.classList.remove("on");
-    }
-  }
+function updateNotifBtn() {
+const btn = document.getElementById("notif-btn");
+if (typeof Notification === "undefined") {
+btn.textContent = "ALERTS UNSUPPORTED";
+btn.disabled = true;
+return;
+}
+if (Notification.permission === "granted") {
+btn.textContent = "🔔 ALERTS ON";
+btn.classList.add("on");
+} else {
+btn.textContent = "🔔 ENABLE ALERTS";
+btn.classList.remove("on");
+}
+}
 
-  document.getElementById("notif-btn").addEventListener("click", () => {
-    if (typeof Notification === "undefined") return;
-    Notification.requestPermission().then(() => {
-      updateNotifBtn();
-      if (Notification.permission === "granted") {
-        notify("TFF Terminal alerts enabled", "You'll be notified of price moves while this tab stays open.");
-      }
-    });
-  });
+document.getElementById("notif-btn").addEventListener("click", () => {
+if (typeof Notification === "undefined") return;
+Notification.requestPermission().then(() => {
+updateNotifBtn();
+if (Notification.permission === "granted") {
+notify("TFF Terminal alerts enabled", "You'll be notified of price moves while this tab stays open.");
+}
+});
+});
 
-  function checkAlerts(snapshots) {
-    const optionsRow = snapshots.find(s => s.pool === "options");
-    const cryptoRow = snapshots.find(s => s.pool === "crypto");
+function checkAlerts(snapshots) {
+const optionsRow = snapshots.find(s => s.pool === "options");
+const cryptoRow = snapshots.find(s => s.pool === "crypto");
 
-    (optionsRow?.data?.open_positions || []).forEach(p => {
-      const key = `opt-${p.ticker}-${p.strike}`;
-      const prev = notifState.optionsMarks[key];
-      if (prev != null && p.mark_price != null && prev > 0) {
-        const pctMove = ((p.mark_price - prev) / prev) * 100;
-        if (Math.abs(pctMove) >= OPTIONS_MOVE_PCT) {
-          notify(`${p.ticker} ${p.strike} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`,
-            `Mark now $${p.mark_price} (was $${prev})`);
-        }
-      }
-      notifState.optionsMarks[key] = p.mark_price;
+(optionsRow?.data?.open_positions || []).forEach(p => {
+const key = `opt-${p.ticker}-${p.strike}`;
+const prev = notifState.optionsMarks[key];
+if (prev != null && p.mark_price != null && prev > 0) {
+const pctMove = ((p.mark_price - prev) / prev) * 100;
+if (Math.abs(pctMove) >= OPTIONS_MOVE_PCT) {
+notify(`${p.ticker} ${p.strike} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`,
+`Mark now $${p.mark_price} (was $${prev})`);
+}
+}
+notifState.optionsMarks[key] = p.mark_price;
 
-      if (p.profit_target && p.mark_price != null && p.mark_price >= p.profit_target * 0.9) {
-        const fKey = key + "-target";
-        if (!notifState.flags.has(fKey)) {
-          notify(`${p.ticker} nearing profit target`, `Mark $${p.mark_price} vs target $${p.profit_target}`);
-          notifState.flags.add(fKey);
-        }
-      }
-      if (p.stop_loss_price && p.mark_price != null && p.mark_price <= p.stop_loss_price * 1.1) {
-        const fKey = key + "-stop";
-        if (!notifState.flags.has(fKey)) {
-          notify(`${p.ticker} nearing stop-loss`, `Mark $${p.mark_price} vs stop $${p.stop_loss_price}`);
-          notifState.flags.add(fKey);
-        }
-      }
-    });
+if (p.profit_target && p.mark_price != null && p.mark_price >= p.profit_target * 0.9) {
+const fKey = key + "-target";
+if (!notifState.flags.has(fKey)) {
+notify(`${p.ticker} nearing profit target`, `Mark $${p.mark_price} vs target $${p.profit_target}`);
+notifState.flags.add(fKey);
+}
+}
+if (p.stop_loss_price && p.mark_price != null && p.mark_price <= p.stop_loss_price * 1.1) {
+const fKey = key + "-stop";
+if (!notifState.flags.has(fKey)) {
+notify(`${p.ticker} nearing stop-loss`, `Mark $${p.mark_price} vs stop $${p.stop_loss_price}`);
+notifState.flags.add(fKey);
+}
+}
+});
 
-    (cryptoRow?.data?.positions || []).forEach(p => {
-      if (p.price == null) return;
-      const key = `cry-${p.asset}`;
-      const prev = notifState.cryptoPrices[key];
-      if (prev != null && prev > 0) {
-        const pctMove = ((p.price - prev) / prev) * 100;
-        if (Math.abs(pctMove) >= CRYPTO_MOVE_PCT) {
-          notify(`${p.asset} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`, `Price now $${p.price}`);
-        }
-      }
-      notifState.cryptoPrices[key] = p.price;
-    });
-  }
+(cryptoRow?.data?.positions || []).forEach(p => {
+if (p.price == null) return;
+const key = `cry-${p.asset}`;
+const prev = notifState.cryptoPrices[key];
+if (prev != null && prev > 0) {
+const pctMove = ((p.price - prev) / prev) * 100;
+if (Math.abs(pctMove) >= CRYPTO_MOVE_PCT) {
+notify(`${p.asset} moved ${pctMove >= 0 ? "+" : ""}${pctMove.toFixed(1)}%`, `Price now $${p.price}`);
+}
+}
+notifState.cryptoPrices[key] = p.price;
+});
+}
 
-  async function fetchTable(table) {
-    const sep = table.includes("?") ? "&" : "?";
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${sep}select=*`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-    });
-    if (!res.ok) throw new Error(`${table} fetch failed: ${res.status}`);
-    return res.json();
-  }
+async function fetchTable(table) {
+const sep = table.includes("?") ? "&" : "?";
+const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${sep}select=*`, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+});
+if (!res.ok) throw new Error(`${table} fetch failed: ${res.status}`);
+return res.json();
+}
 
-  function minutesAgo(iso) {
-    return (Date.now() - new Date(iso).getTime()) / 60000;
-  }
+function minutesAgo(iso) {
+return (Date.now() - new Date(iso).getTime()) / 60000;
+}
 
-  function poolValue(row) {
-    if (!row) return 0;
-    const v = row.data.total_value ?? row.data.deployed ?? null;
-    return typeof v === "number" ? v : 0;
-  }
+function poolValue(row) {
+if (!row) return 0;
+const v = row.data.total_value ?? row.data.deployed ?? null;
+return typeof v === "number" ? v : 0;
+}
 
-  function money(v) {
-    return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
+function money(v) {
+return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
 
-  function renderMaster(snapshots) {
-    const order = ["options", "crypto", "yield"];
-    const values = order.map(pool => {
-      const row = snapshots.find(s => s.pool === pool);
-      return { pool, value: poolValue(row) };
-    });
-    const total = values.reduce((s, v) => s + v.value, 0);
-    document.getElementById("master-total").textContent = money(total);
+function renderMaster(snapshots) {
+const values = POOL_ORDER.map(pool => {
+const row = snapshots.find(s => s.pool === pool);
+return { pool, value: poolValue(row) };
+});
+const total = values.reduce((s, v) => s + v.value, 0);
+document.getElementById("master-total").textContent = money(total);
 
-    const bar = document.getElementById("led-bar");
-    bar.innerHTML = "";
-    let cum = 0;
-    const thresholds = values.map(v => {
-      cum += total > 0 ? v.value / total : 0;
-      return { pool: v.pool, cum };
-    });
-    for (let i = 0; i < LED_SEGMENTS; i++) {
-      const frac = (i + 1) / LED_SEGMENTS;
-      const seg = document.createElement("div");
-      seg.className = "led-seg";
-      const hit = thresholds.find(t => frac <= t.cum + 0.0001);
-      if (total > 0 && hit) seg.classList.add(`on-${hit.pool}`);
-      bar.appendChild(seg);
-    }
-  }
+const bar = document.getElementById("led-bar");
+bar.innerHTML = "";
+let cum = 0;
+const thresholds = values.map(v => {
+cum += total > 0 ? v.value / total : 0;
+return { pool: v.pool, cum };
+});
+for (let i = 0; i < LED_SEGMENTS; i++) {
+const frac = (i + 1) / LED_SEGMENTS;
+const seg = document.createElement("div");
+seg.className = "led-seg";
+const hit = thresholds.find(t => frac <= t.cum + 0.0001);
+if (total > 0 && hit) seg.classList.add(`on-${hit.pool}`);
+bar.appendChild(seg);
+}
+}
 
-  function renderStatusStrip(snapshots) {
-    const wrap = document.getElementById("status-strip");
-    const order = ["options", "crypto", "yield"];
-    wrap.innerHTML = order.map(pool => {
-      const row = snapshots.find(s => s.pool === pool);
-      if (!row) {
-        return `<div class="status-item"><span class="pool-name">${pool.toUpperCase()}</span><span class="dot warn"></span><span class="status-age warn">no data</span></div>`;
-      }
-      const age = minutesAgo(row.updated_at);
-      const stale = age > STALE_AFTER_MIN;
-      const ageText = age < 60 ? `${age.toFixed(0)}m ago` : `${(age / 60).toFixed(1)}h ago`;
-      return `
-        <div class="status-item">
-          <span class="pool-name">${pool.toUpperCase()}</span>
-          <span class="dot ${stale ? "warn" : "ok"}"></span>
-          <span class="status-age ${stale ? "warn" : ""}">${stale ? "STALE · " : ""}${ageText}</span>
-        </div>
-      `;
-    }).join("");
-  }
+function renderStatusStrip(snapshots) {
+const wrap = document.getElementById("status-strip");
+wrap.innerHTML = POOL_ORDER.map(pool => {
+const row = snapshots.find(s => s.pool === pool);
+if (!row) {
+return `<div class="status-item"><span class="pool-name">${pool.toUpperCase()}</span><span class="dot warn"></span><span class="status-age warn">no data</span></div>`;
+}
+const age = minutesAgo(row.updated_at);
+const stale = age > STALE_AFTER_MIN;
+const ageText = age < 60 ? `${age.toFixed(0)}m ago` : `${(age / 60).toFixed(1)}h ago`;
+return `
+<div class="status-item">
+<span class="pool-name">${pool.toUpperCase()}</span>
+<span class="dot ${stale ? "warn" : "ok"}"></span>
+<span class="status-age ${stale ? "warn" : ""}">${stale ? "STALE · " : ""}${ageText}</span>
+</div>
+`;
+}).join("");
+}
 
-  function renderTrend(rows) {
-    const svg = document.getElementById("trend-svg");
-    const totalEl = document.getElementById("trend-total");
-    const deltaEl = document.getElementById("trend-delta");
-    const startEl = document.getElementById("trend-start-date");
-    const endEl = document.getElementById("trend-end-date");
+function renderTrend(rows) {
+const svg = document.getElementById("trend-svg");
+const totalEl = document.getElementById("trend-total");
+const deltaEl = document.getElementById("trend-delta");
+const startEl = document.getElementById("trend-start-date");
+const endEl = document.getElementById("trend-end-date");
 
-    if (!rows || rows.length === 0) {
-      svg.innerHTML = "";
-      totalEl.textContent = "$—";
-      deltaEl.textContent = "";
-      startEl.textContent = "no history yet";
-      endEl.textContent = "";
-      return;
-    }
+if (!rows || rows.length === 0) {
+svg.innerHTML = "";
+totalEl.textContent = "$—";
+deltaEl.textContent = "";
+startEl.textContent = "no history yet";
+endEl.textContent = "";
+return;
+}
 
-    const values = rows.map(r => r.total_value);
-    const last = values[values.length - 1];
-    const first = values[0];
-    const delta = last - first;
-    const deltaPct = first > 0 ? (delta / first) * 100 : 0;
+const values = rows.map(r => r.total_value);
+const last = values[values.length - 1];
+const first = values[0];
+const delta = last - first;
+const deltaPct = first > 0 ? (delta / first) * 100 : 0;
 
-    totalEl.textContent = money(last);
-    if (rows.length > 1) {
-      deltaEl.className = "trend-delta " + (delta >= 0 ? "up" : "down");
-      deltaEl.textContent = `${delta >= 0 ? "▲" : "▼"} ${money(Math.abs(delta))} (${deltaPct.toFixed(1)}%) since first log`;
-    } else {
-      deltaEl.textContent = "";
-    }
+totalEl.textContent = money(last);
+if (rows.length > 1) {
+deltaEl.className = "trend-delta " + (delta >= 0 ? "up" : "down");
+deltaEl.textContent = `${delta >= 0 ? "▲" : "▼"} ${money(Math.abs(delta))} (${deltaPct.toFixed(1)}%) since first log`;
+} else {
+deltaEl.textContent = "";
+}
 
-    let min = Math.min(...values);
-    let max = Math.max(...values);
-    if (min === max) { min -= 1; max += 1; }
-    const pad = (max - min) * 0.1;
-    min -= pad; max += pad;
+let min = Math.min(...values);
+let max = Math.max(...values);
+if (min === max) { min -= 1; max += 1; }
+const pad = (max - min) * 0.1;
+min -= pad; max += pad;
 
-    const w = 300, h = 140;
-    const points = rows.map((r, i) => {
-      const x = rows.length > 1 ? (i / (rows.length - 1)) * w : w / 2;
-      const y = h - ((r.total_value - min) / (max - min)) * h;
-      return [x, y];
-    });
+const w = 300, h = 140;
+const points = rows.map((r, i) => {
+const x = rows.length > 1 ? (i / (rows.length - 1)) * w : w / 2;
+const y = h - ((r.total_value - min) / (max - min)) * h;
+return [x, y];
+});
+const lineStr = points.map(p => p.join(",")).join(" ");
+const areaStr = `0,${h} ${lineStr} ${w},${h}`;
 
-    const lineStr = points.map(p => p.join(",")).join(" ");
-    const areaStr = `0,${h} ${lineStr} ${w},${h}`;
+svg.innerHTML = `
+<defs>
+<linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
+<stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+</linearGradient>
+</defs>
+<polygon points="${areaStr}" fill="url(#trendFill)"/>
+<polyline points="${lineStr}" fill="none" stroke="var(--green)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+`;
 
-    svg.innerHTML = `
-      <defs>
-        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <polygon points="${areaStr}" fill="url(#trendFill)"/>
-      <polyline points="${lineStr}" fill="none" stroke="var(--green)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
-    `;
+const fmt = iso => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+startEl.textContent = fmt(rows[0].recorded_at);
+endEl.textContent = fmt(rows[rows.length - 1].recorded_at);
+}
 
-    const fmt = iso => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    startEl.textContent = fmt(rows[0].recorded_at);
-    endEl.textContent = fmt(rows[rows.length - 1].recorded_at);
-  }
+function renderGauges(snapshots, watch) {
+const optionsRow = snapshots.find(s => s.pool === "options");
+const bp = optionsRow?.data?.buying_power;
+document.getElementById("gauge-bp").textContent =
+typeof bp === "number" ? money(bp) : "—";
+document.getElementById("gauge-bp-bar").style.width =
+typeof bp === "number" ? Math.min((bp / 500) * 100, 100) + "%" : "0%";
 
-  function renderGauges(snapshots, watch) {
-    const optionsRow = snapshots.find(s => s.pool === "options");
-    const bp = optionsRow?.data?.buying_power;
-    document.getElementById("gauge-bp").textContent =
-      typeof bp === "number" ? money(bp) : "—";
-    document.getElementById("gauge-bp-bar").style.width =
-      typeof bp === "number" ? Math.min((bp / 500) * 100, 100) + "%" : "0%";
+const mergerRow = snapshots.find(s => s.pool === "merger");
+const mergerPositions = mergerRow?.data?.positions || [];
+document.getElementById("gauge-merger").textContent = mergerRow ? String(mergerPositions.length) : "—";
+const avgAnn = mergerPositions.length
+? mergerPositions.reduce((s, p) => s + (p.annualized_return_pct || 0), 0) / mergerPositions.length
+: null;
+document.getElementById("gauge-merger-sub").textContent =
+avgAnn != null ? `avg ${avgAnn.toFixed(1)}% annualized` : (mergerRow ? "no active deals" : "of pool size");
+document.getElementById("gauge-merger-bar").style.width =
+mergerPositions.length ? Math.min((mergerPositions.length / 6) * 100, 100) + "%" : "0%";
 
-    const cryptoRow = snapshots.find(s => s.pool === "crypto");
-    const pct = cryptoRow?.data?.pct_deployed;
-    document.getElementById("gauge-crypto").textContent =
-      typeof pct === "number" ? pct.toFixed(0) + "%" : "—";
-    document.getElementById("gauge-crypto-bar").style.width =
-      typeof pct === "number" ? Math.min(pct, 100) + "%" : "0%";
-    const poolSize = cryptoRow?.data?.pool_size;
-    document.getElementById("gauge-crypto-sub").textContent =
-      typeof poolSize === "number" ? `of $${poolSize} pool` : "of pool size";
+const cryptoRow = snapshots.find(s => s.pool === "crypto");
+const pct = cryptoRow?.data?.pct_deployed;
+document.getElementById("gauge-crypto").textContent =
+typeof pct === "number" ? pct.toFixed(0) + "%" : "—";
+document.getElementById("gauge-crypto-bar").style.width =
+typeof pct === "number" ? Math.min(pct, 100) + "%" : "0%";
+const poolSize = cryptoRow?.data?.pool_size;
+document.getElementById("gauge-crypto-sub").textContent =
+typeof poolSize === "number" ? `of $${poolSize} pool` : "of pool size";
 
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const upcoming = (watch || [])
-      .filter(w => new Date(w.event_date) >= today)
-      .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))[0];
-    if (upcoming) {
-      const days = Math.round((new Date(upcoming.event_date) - today) / 86400000);
-      document.getElementById("gauge-catalyst").textContent = `${days}D`;
-      document.getElementById("gauge-catalyst-sub").textContent =
-        `${upcoming.ticker} — ${upcoming.event_date}`;
-    } else {
-      document.getElementById("gauge-catalyst").textContent = "—";
-      document.getElementById("gauge-catalyst-sub").textContent = "no events on file";
-    }
-  }
+const today = new Date();
+today.setHours(0,0,0,0);
+const upcoming = (watch || [])
+.filter(w => new Date(w.event_date) >= today)
+.sort((a,b) => new Date(a.event_date) - new Date(b.event_date))[0];
+if (upcoming) {
+const days = Math.round((new Date(upcoming.event_date) - today) / 86400000);
+document.getElementById("gauge-catalyst").textContent = `${days}D`;
+document.getElementById("gauge-catalyst-sub").textContent =
+`${upcoming.ticker} — ${upcoming.event_date}`;
+} else {
+document.getElementById("gauge-catalyst").textContent = "—";
+document.getElementById("gauge-catalyst-sub").textContent = "no events on file";
+}
+}
 
-  function optionsSummary(data) {
-    const positions = data.open_positions || [];
-    const bp = typeof data.buying_power === "number" ? money(data.buying_power) : "—";
-    let html = `<div class="pool-line"><span class="k">Buying power:</span>${bp} · ${positions.length} open</div>`;
-    if (positions[0]) {
-      const p = positions[0];
-      const pnlColor = p.pnl_dollar >= 0 ? "var(--green)" : "var(--red)";
-      html += `<div class="pool-line"><span class="k">Top:</span>${p.ticker} ${p.strike} — <span style="color:${pnlColor}">${p.pnl_dollar >= 0 ? "+" : ""}$${p.pnl_dollar} (${p.pnl_pct}%)</span></div>`;
-      html += p.stop_loss_active
-        ? `<span class="pool-flag ok">STOP-LOSS ACTIVE</span>`
-        : `<span class="pool-flag warn">NO STOP-LOSS</span>`;
-    }
-    return html;
-  }
+function optionsSummary(data) {
+const positions = data.open_positions || [];
+const bp = typeof data.buying_power === "number" ? money(data.buying_power) : "—";
+let html = `<div class="pool-line"><span class="k">Buying power:</span>${bp} · ${positions.length} open</div>`;
+if (positions[0]) {
+const p = positions[0];
+const pnlColor = p.pnl_dollar >= 0 ? "var(--green)" : "var(--red)";
+html += `<div class="pool-line"><span class="k">Top:</span>${p.ticker} ${p.strike} — <span style="color:${pnlColor}">${p.pnl_dollar >= 0 ? "+" : ""}$${p.pnl_dollar} (${p.pnl_pct}%)</span></div>`;
+html += p.stop_loss_active
+? `<span class="pool-flag ok">STOP-LOSS ACTIVE</span>`
+: `<span class="pool-flag warn">NO STOP-LOSS</span>`;
+}
+return html;
+}
 
-  function cryptoSummary(data) {
-    const pct = typeof data.pct_deployed === "number" ? data.pct_deployed.toFixed(0) : "0";
-    const poolSize = data.pool_size ?? "—";
-    const assets = (data.positions || []).map(p => p.asset).join(" · ") || "none";
-    return `
-      <div class="pool-line"><span class="k">Deployed:</span>${pct}% of $${poolSize} pool</div>
-      <div class="pool-line"><span class="k">Holdings:</span>${assets}</div>
-      <div class="pool-line"><span class="k">Buying power:</span>${typeof data.buying_power === "number" ? money(data.buying_power) : "—"}</div>
-    `;
-  }
+function mergerSummary(data) {
+const positions = data.positions || [];
+const pct = typeof data.pct_deployed === "number" ? data.pct_deployed.toFixed(0) : "0";
+const poolSize = data.pool_size ?? "—";
+let html = `<div class="pool-line"><span class="k">Deployed:</span>${pct}% of $${poolSize} pool</div>`;
+html += `<div class="pool-line"><span class="k">Active deals:</span>${positions.length}</div>`;
+if (positions[0]) {
+const p = positions[0];
+const spreadText = typeof p.spread_pct === "number" ? p.spread_pct.toFixed(1) : "—";
+const annText = typeof p.annualized_return_pct === "number" ? p.annualized_return_pct.toFixed(1) : "—";
+html += `<div class="pool-line"><span class="k">Top:</span>${p.ticker} — spread ${spreadText}% · ann. ${annText}%</div>`;
+html += p.stop_loss_active
+? `<span class="pool-flag ok">STOP-LOSS ACTIVE</span>`
+: `<span class="pool-flag warn">NO STOP-LOSS</span>`;
+}
+return html;
+}
 
-  function yieldSummary(data) {
-    if (data.status) return `<div class="pool-line">Not yet funded — awaiting first allocation</div>`;
-    return `<div class="pool-line">Yield data available</div>`;
-  }
+function cryptoSummary(data) {
+const pct = typeof data.pct_deployed === "number" ? data.pct_deployed.toFixed(0) : "0";
+const poolSize = data.pool_size ?? "—";
+const assets = (data.positions || []).map(p => p.asset).join(" · ") || "none";
+return `
+<div class="pool-line"><span class="k">Deployed:</span>${pct}% of $${poolSize} pool</div>
+<div class="pool-line"><span class="k">Holdings:</span>${assets}</div>
+<div class="pool-line"><span class="k">Buying power:</span>${typeof data.buying_power === "number" ? money(data.buying_power) : "—"}</div>
+`;
+}
 
-  function renderPools(snapshots) {
-    const grid = document.getElementById("pool-grid");
-    grid.innerHTML = "";
-    const order = ["options", "crypto", "yield"];
-    for (const pool of order) {
-      const row = snapshots.find(s => s.pool === pool);
-      const card = document.createElement("div");
-      card.className = `crt-panel pool-card ${pool}`;
-      if (!row) {
-        card.innerHTML = `<h2>${pool.toUpperCase()}</h2><div class="pool-val">no data yet</div>`;
-        grid.appendChild(card);
-        continue;
-      }
-      const age = minutesAgo(row.updated_at);
-      const staleClass = age > STALE_AFTER_MIN ? "stale" : "fresh";
-      const value = row.data.total_value ?? row.data.deployed ?? row.data.status ?? "—";
-      let summary = "";
-      if (pool === "options") summary = optionsSummary(row.data);
-      else if (pool === "crypto") summary = cryptoSummary(row.data);
-      else summary = yieldSummary(row.data);
+function yieldSummary(data) {
+if (data.status) return `<div class="pool-line">Not yet funded — awaiting first allocation</div>`;
+return `<div class="pool-line">Yield data available</div>`;
+}
 
-      card.innerHTML = `
-        <h2>${pool.toUpperCase()}</h2>
-        <div class="pool-val ${staleClass}">${typeof value === "number" ? "$" + value.toLocaleString() : value}</div>
-        <div class="pool-updated">source: ${row.source} · synced ${age.toFixed(0)}m ago</div>
-        ${summary}
-      `;
-      grid.appendChild(card);
-    }
-  }
+function renderPools(snapshots) {
+const grid = document.getElementById("pool-grid");
+grid.innerHTML = "";
+for (const pool of POOL_ORDER) {
+const row = snapshots.find(s => s.pool === pool);
+const card = document.createElement("div");
+card.className = `crt-panel pool-card ${pool}`;
+if (!row) {
+card.innerHTML = `<h2>${pool.toUpperCase()}</h2><div class="pool-val">no data yet</div>`;
+grid.appendChild(card);
+continue;
+}
+const age = minutesAgo(row.updated_at);
+const staleClass = age > STALE_AFTER_MIN ? "stale" : "fresh";
+const value = row.data.total_value ?? row.data.deployed ?? row.data.status ?? "—";
 
-  function renderCapital(snapshots) {
-    const order = ["options", "crypto", "yield"];
-    const values = order.map(pool => {
-      const row = snapshots.find(s => s.pool === pool);
-      return { pool, value: poolValue(row) };
-    });
-    const total = values.reduce((s, v) => s + v.value, 0);
-    document.getElementById("capital-total-val").textContent = money(total);
+let summary = "";
+if (pool === "options") summary = optionsSummary(row.data);
+else if (pool === "merger") summary = mergerSummary(row.data);
+else if (pool === "crypto") summary = cryptoSummary(row.data);
+else summary = yieldSummary(row.data);
 
-    const bars = document.getElementById("capital-bars");
-    bars.innerHTML = values.map(v => {
-      const pct = total > 0 ? (v.value / total) * 100 : 0;
-      return `
-        <div class="cap-row">
-          <div class="cap-label ${v.pool}">${v.pool.toUpperCase()}</div>
-          <div class="cap-bar-track"><div class="cap-bar-fill ${v.pool}" style="width:${pct.toFixed(1)}%"></div></div>
-          <div class="cap-value">${money(v.value)}</div>
-          <div class="cap-pct">${pct.toFixed(0)}%</div>
-        </div>
-      `;
-    }).join("");
-  }
+card.innerHTML = `
+<h2>${pool.toUpperCase()}</h2>
+<div class="pool-val ${staleClass}">${typeof value === "number" ? "$" + value.toLocaleString() : value}</div>
+<div class="pool-updated">source: ${row.source} · synced ${age.toFixed(0)}m ago</div>
+${summary}
+`;
+grid.appendChild(card);
+}
+}
 
-  function renderPositionsTable(snapshots) {
-    const optionsRow = snapshots.find(s => s.pool === "options");
-    const positions = optionsRow?.data?.open_positions || [];
-    const flagsWrap = document.getElementById("pos-flags");
-    const rowsWrap = document.getElementById("pos-rows");
+function renderCapital(snapshots) {
+const values = POOL_ORDER.map(pool => {
+const row = snapshots.find(s => s.pool === pool);
+return { pool, value: poolValue(row) };
+});
+const total = values.reduce((s, v) => s + v.value, 0);
+document.getElementById("capital-total-val").textContent = money(total);
 
-    const flags = [];
-    const noStop = positions.filter(p => !p.stop_loss_active);
-    if (noStop.length) {
-      flags.push(`NO STOP-LOSS: ${noStop.map(p => `${p.ticker} ${p.strike}`).join(", ")}`);
-    }
-    if (positions.length > MAX_OPEN_POSITIONS) {
-      flags.push(`PILLAR III: ${positions.length} open positions exceeds ${MAX_OPEN_POSITIONS}-position cap`);
-    }
-    flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
+const bars = document.getElementById("capital-bars");
+bars.innerHTML = values.map(v => {
+const pct = total > 0 ? (v.value / total) * 100 : 0;
+return `
+<div class="cap-row">
+<div class="cap-label ${v.pool}">${v.pool.toUpperCase()}</div>
+<div class="cap-bar-track"><div class="cap-bar-fill ${v.pool}" style="width:${pct.toFixed(1)}%"></div></div>
+<div class="cap-value">${money(v.value)}</div>
+<div class="cap-pct">${pct.toFixed(0)}%</div>
+</div>
+`;
+}).join("");
+}
 
-    if (!positions.length) {
-      rowsWrap.innerHTML = `<div style="padding:10px 4px;color:var(--text-dim);font-size:11px;">no open options positions</div>`;
-      return;
-    }
+function renderPositionsTable(snapshots) {
+const optionsRow = snapshots.find(s => s.pool === "options");
+const positions = optionsRow?.data?.open_positions || [];
+const flagsWrap = document.getElementById("pos-flags");
+const rowsWrap = document.getElementById("pos-rows");
 
-    rowsWrap.innerHTML = positions.map(p => {
-      const pnlUp = (p.pnl_dollar ?? 0) >= 0;
-      const pnlClass = pnlUp ? "pos-pnl-up" : "pos-pnl-down";
-      const pnlSign = pnlUp ? "+" : "";
-      const pnlText = (p.pnl_dollar != null && p.pnl_pct != null)
-        ? `${pnlSign}$${Math.abs(p.pnl_dollar)} (${pnlSign}${p.pnl_pct}%)`
-        : "—";
-      const stopHtml = p.stop_loss_active
-        ? `<span class="pos-stop-ok">GTC ✓</span>`
-        : `<span class="pos-stop-warn">NO STOP</span>`;
-      const targetHtml = p.profit_target
-        ? `$${p.profit_target}${p.mark_price != null ? ` (${Math.round((p.mark_price / p.profit_target) * 100)}%)` : ""}`
-        : "—";
-      return `
-        <div class="pos-row">
-          <div class="pos-ticker">${p.ticker}</div>
-          <div>${p.strike ?? "—"}</div>
-          <div>${p.mark_price != null ? "$" + p.mark_price : "—"}</div>
-          <div class="${pnlClass}">${pnlText}</div>
-          <div>${stopHtml}</div>
-          <div class="pos-target-col pos-target">${targetHtml}</div>
-        </div>
-      `;
-    }).join("");
-  }
+const flags = [];
+const noStop = positions.filter(p => !p.stop_loss_active);
+if (noStop.length) {
+flags.push(`NO STOP-LOSS: ${noStop.map(p => `${p.ticker} ${p.strike}`).join(", ")}`);
+}
+if (positions.length > MAX_OPEN_POSITIONS) {
+flags.push(`PILLAR III: ${positions.length} open positions exceeds ${MAX_OPEN_POSITIONS}-position cap`);
+}
+flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
 
-  function renderSectorConcentration(snapshots) {
-    const optionsRow = snapshots.find(s => s.pool === "options");
-    const positions = optionsRow?.data?.open_positions || [];
-    const flagsWrap = document.getElementById("sector-flags");
-    const barsWrap = document.getElementById("sector-bars");
+if (!positions.length) {
+rowsWrap.innerHTML = `<div style="padding:10px 4px;color:var(--text-dim);font-size:11px;">no open options positions</div>`;
+return;
+}
 
-    if (!positions.length) {
-      flagsWrap.innerHTML = "";
-      barsWrap.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">no open positions to assess</div>`;
-      return;
-    }
+rowsWrap.innerHTML = positions.map(p => {
+const pnlUp = (p.pnl_dollar ?? 0) >= 0;
+const pnlClass = pnlUp ? "pos-pnl-up" : "pos-pnl-down";
+const pnlSign = pnlUp ? "+" : "";
+const pnlText = (p.pnl_dollar != null && p.pnl_pct != null)
+? `${pnlSign}$${Math.abs(p.pnl_dollar)} (${pnlSign}${p.pnl_pct}%)`
+: "—";
+const stopHtml = p.stop_loss_active
+? `<span class="pos-stop-ok">GTC ✓</span>`
+: `<span class="pos-stop-warn">NO STOP</span>`;
+const targetHtml = p.profit_target
+? `$${p.profit_target}${p.mark_price != null ? ` (${Math.round((p.mark_price / p.profit_target) * 100)}%)` : ""}`
+: "—";
+return `
+<div class="pos-row">
+<div class="pos-ticker">${p.ticker}</div>
+<div>${p.strike ?? "—"}</div>
+<div>${p.mark_price != null ? "$" + p.mark_price : "—"}</div>
+<div class="${pnlClass}">${pnlText}</div>
+<div>${stopHtml}</div>
+<div class="pos-target-col pos-target">${targetHtml}</div>
+</div>
+`;
+}).join("");
+}
 
-    const counts = {};
-    positions.forEach(p => {
-      const sector = SECTOR_MAP[p.ticker] || "Other";
-      counts[sector] = (counts[sector] || 0) + 1;
-    });
-    const sectors = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const total = positions.length;
+function renderMergerPositionsTable(snapshots) {
+const mergerRow = snapshots.find(s => s.pool === "merger");
+const positions = mergerRow?.data?.positions || [];
+const flagsWrap = document.getElementById("mpos-flags");
+const rowsWrap = document.getElementById("mpos-rows");
 
-    const flags = [];
-    if (sectors.length < 2) {
-      flags.push(`PILLAR VI: all open positions in a single sector (${sectors[0][0]}) — diversify across ≥2 uncorrelated sectors`);
-    }
-    sectors.forEach(([sector, count]) => {
-      if (count >= 3) flags.push(`PILLAR VI: ${count} positions share ${sector} — concentration risk`);
-    });
-    flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
+const flags = [];
+const noStop = positions.filter(p => !p.stop_loss_active);
+if (noStop.length) {
+flags.push(`NO STOP-LOSS: ${noStop.map(p => p.ticker).join(", ")}`);
+}
+const stalled = positions.filter(p => {
+if (!p.outside_date) return false;
+const daysLeft = Math.round((new Date(p.outside_date) - new Date()) / 86400000);
+return daysLeft >= 0 && daysLeft <= 28;
+});
+if (stalled.length) {
+flags.push(`OUTSIDE DATE APPROACHING: ${stalled.map(p => p.ticker).join(", ")}`);
+}
+flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
 
-    barsWrap.innerHTML = sectors.map(([sector, count]) => {
-      const pct = (count / total) * 100;
-      return `
-        <div class="sector-row">
-          <div class="sector-label">${sector}</div>
-          <div class="sector-bar-track"><div class="sector-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
-          <div class="sector-count">${count} pos · ${pct.toFixed(0)}%</div>
-        </div>
-      `;
-    }).join("");
-  }
+if (!positions.length) {
+rowsWrap.innerHTML = `<div style="padding:10px 4px;color:var(--text-dim);font-size:11px;">no open merger arbitrage positions</div>`;
+return;
+}
 
-  function renderWatch(items) {
-    const wrap = document.getElementById("watch-list");
-    const sorted = [...items].sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
-    wrap.innerHTML = sorted.map(w => `
-      <div class="watch-row">
-        <div class="watch-date">${w.event_date}</div>
-        <div class="watch-ticker">${w.ticker}</div>
-        <div class="watch-type ${w.event_type}">${w.event_type}</div>
-        <div class="watch-desc">${w.description}${w.confirmed === false ? '<span class="unconfirmed">UNCONFIRMED</span>' : ''}</div>
-      </div>
-    `).join("") || `<div class="watch-row"><div></div><div></div><div></div><div>no upcoming events on file</div></div>`;
-  }
+rowsWrap.innerHTML = positions.map(p => {
+const spreadText = typeof p.spread_pct === "number" ? `${p.spread_pct.toFixed(1)}%` : "—";
+const annText = typeof p.annualized_return_pct === "number" ? `${p.annualized_return_pct.toFixed(1)}%` : "—";
+const closeText = typeof p.days_to_close === "number" ? `${p.days_to_close}d` : "—";
+const stopHtml = p.stop_loss_active
+? `<span class="pos-stop-ok">GTC ✓</span>`
+: `<span class="pos-stop-warn">NO STOP</span>`;
+return `
+<div class="mpos-row">
+<div class="pos-ticker">${p.ticker}</div>
+<div>${spreadText}</div>
+<div>${annText}</div>
+<div class="mpos-close-col">${closeText}</div>
+<div>${stopHtml}</div>
+</div>
+`;
+}).join("");
+}
 
-  function renderNews(items) {
-    const wrap = document.getElementById("news-list");
-    wrap.innerHTML = (items || []).map(n => `
-      <div class="news-row">
-        <span class="news-ticker">${n.ticker}</span><span class="news-source">${n.source} · ${new Date(n.published_at).toLocaleDateString()}</span>
-        <div class="news-headline">${n.headline}</div>
-      </div>
-    `).join("") || `<div class="news-row">no recent news on file</div>`;
-  }
+function renderSectorConcentration(snapshots) {
+const optionsRow = snapshots.find(s => s.pool === "options");
+const positions = optionsRow?.data?.open_positions || [];
+const flagsWrap = document.getElementById("sector-flags");
+const barsWrap = document.getElementById("sector-bars");
 
-  function renderActions(actions) {
-    const wrap = document.getElementById("actions");
-    const seen = new Set();
-    const deduped = actions.filter(a => {
-      const key = a.pool + a.message;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    wrap.innerHTML = deduped
-      .filter(a => a.status === "open")
-      .map(a => `
-        <div class="action-row">
-          <div class="prio-${a.priority}">${a.priority.toUpperCase()}</div>
-          <div>${a.pool}</div>
-          <div>${a.message}</div>
-        </div>
-      `).join("") || `<div class="action-row"><div></div><div></div><div>no open flags</div></div>`;
-  }
+if (!positions.length) {
+flagsWrap.innerHTML = "";
+barsWrap.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">no open positions to assess</div>`;
+return;
+}
 
-  async function refresh() {
-    try {
-      const [snapshots, actions, watch, history, news] = await Promise.all([
-        fetchTable("pool_snapshots"),
-        fetchTable("priority_actions?order=created_at.desc&limit=20"),
-        fetchTable("weekly_watch?order=event_date.asc"),
-        fetchTable("capital_history?order=recorded_at.asc&limit=500"),
-        fetchTable("market_news?order=published_at.desc&limit=10")
-      ]);
-      checkAlerts(snapshots);
-      renderMaster(snapshots);
-      renderStatusStrip(snapshots);
-      renderTrend(history);
-      renderGauges(snapshots, watch);
-      renderPools(snapshots);
-      renderCapital(snapshots);
-      renderPositionsTable(snapshots);
-      renderSectorConcentration(snapshots);
-      renderActions(actions);
-      renderWatch(watch);
-      renderNews(news);
-      document.getElementById("sync-status").innerHTML =
-        `<span class="dot"></span>live · last refresh ${new Date().toLocaleTimeString()}`;
-    } catch (err) {
-      document.getElementById("sync-status").textContent = `sync error: ${err.message}`;
-      console.error(err);
-    }
-  }
+const counts = {};
+positions.forEach(p => {
+const sector = SECTOR_MAP[p.ticker] || "Other";
+counts[sector] = (counts[sector] || 0) + 1;
+});
 
-  updateNotifBtn();
-  refresh();
-  setInterval(refresh, 30000);
+const sectors = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+const total = positions.length;
+
+const flags = [];
+if (sectors.length < 2) {
+flags.push(`PILLAR VI: all open positions in a single sector (${sectors[0][0]}) — diversify across ≥2 uncorrelated sectors`);
+}
+sectors.forEach(([sector, count]) => {
+if (count >= 3) flags.push(`PILLAR VI: ${count} positions share ${sector} — concentration risk`);
+});
+flagsWrap.innerHTML = flags.map(f => `<span class="pos-flag-warn">${f}</span>`).join("");
+
+barsWrap.innerHTML = sectors.map(([sector, count]) => {
+const pct = (count / total) * 100;
+return `
+<div class="sector-row">
+<div class="sector-label">${sector}</div>
+<div class="sector-bar-track"><div class="sector-bar-fill" style="width:${pct.toFixed(0)}%"></div></div>
+<div class="sector-count">${count} pos · ${pct.toFixed(0)}%</div>
+</div>
+`;
+}).join("");
+}
+
+function renderWatch(items) {
+const wrap = document.getElementById("watch-list");
+const sorted = [...items].sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+wrap.innerHTML = sorted.map(w => `
+<div class="watch-row">
+<div class="watch-date">${w.event_date}</div>
+<div class="watch-ticker">${w.ticker}</div>
+<div class="watch-type ${w.event_type}">${w.event_type}</div>
+<div class="watch-desc">${w.description}${w.confirmed === false ? '<span class="unconfirmed">UNCONFIRMED</span>' : ''}</div>
+</div>
+`).join("") || `<div class="watch-row"><div></div><div></div><div></div><div>no upcoming events on file</div></div>`;
+}
+
+function renderNews(items) {
+const wrap = document.getElementById("news-list");
+wrap.innerHTML = (items || []).map(n => `
+<div class="news-row">
+<span class="news-ticker">${n.ticker}</span><span class="news-source">${n.source} · ${new Date(n.published_at).toLocaleDateString()}</span>
+<div class="news-headline">${n.headline}</div>
+</div>
+`).join("") || `<div class="news-row">no recent news on file</div>`;
+}
+
+function renderActions(actions) {
+const wrap = document.getElementById("actions");
+const seen = new Set();
+const deduped = actions.filter(a => {
+const key = a.pool + a.message;
+if (seen.has(key)) return false;
+seen.add(key);
+return true;
+});
+wrap.innerHTML = deduped
+.filter(a => a.status === "open")
+.map(a => `
+<div class="action-row">
+<div class="prio-${a.priority}">${a.priority.toUpperCase()}</div>
+<div>${a.pool}</div>
+<div>${a.message}</div>
+</div>
+`).join("") || `<div class="action-row"><div></div><div></div><div>no open flags</div></div>`;
+}
+
+async function refresh() {
+try {
+const [snapshots, actions, watch, history, news] = await Promise.all([
+fetchTable("pool_snapshots"),
+fetchTable("priority_actions?order=created_at.desc&limit=20"),
+fetchTable("weekly_watch?order=event_date.asc"),
+fetchTable("capital_history?order=recorded_at.asc&limit=500"),
+fetchTable("market_news?order=published_at.desc&limit=10")
+]);
+
+checkAlerts(snapshots);
+renderMaster(snapshots);
+renderStatusStrip(snapshots);
+renderTrend(history);
+renderGauges(snapshots, watch);
+renderPools(snapshots);
+renderCapital(snapshots);
+renderPositionsTable(snapshots);
+renderMergerPositionsTable(snapshots);
+renderSectorConcentration(snapshots);
+renderActions(actions);
+renderWatch(watch);
+renderNews(news);
+
+document.getElementById("sync-status").innerHTML =
+`<span class="dot"></span>live · last refresh ${new Date().toLocaleTimeString()}`;
+} catch (err) {
+document.getElementById("sync-status").textContent = `sync error: ${err.message}`;
+console.error(err);
+}
+}
+
+updateNotifBtn();
+refresh();
+setInterval(refresh, 30000);
 </script>
 </body>
 </html>
