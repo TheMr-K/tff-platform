@@ -75,6 +75,11 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 .gauge-bar-track{height:5px;background:#1c1508;border:1px solid var(--panel-border);}
 .gauge-bar-fill{height:100%;background:linear-gradient(90deg,var(--amber-glow),var(--amber));}
 .gauge-sub{font-size:7px;color:var(--text-dim);margin-top:4px;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gauge-num.warn{color:var(--red);text-shadow:0 0 6px rgba(255,75,75,.5);}
+.status-grid{margin-top:14px;}
+.subhead{font-size:10px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--panel-border);}
+.subhead.first{margin-top:0;padding-top:0;border-top:none;}
+.capital-bars-inline{margin-top:14px;}
 .pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
 .pool-card{padding:16px;}
 .pool-card h2{margin:0 0 8px;font-size:14px;letter-spacing:2px;color:var(--green);}
@@ -186,15 +191,10 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 <div class="master-label">COMBINED CAPITAL — ALL POOLS</div>
 <div class="master-num" id="master-total">$—</div>
 <div class="led-bar" id="led-bar"></div>
-<div class="led-legend">
-<span class="lg-options">OPTIONS</span>
-<span class="lg-merger">MERGER</span>
-<span class="lg-crypto">CRYPTO</span>
-<span class="lg-yield">YIELD</span>
-</div>
+<div id="capital-bars" class="capital-bars-inline"></div>
 </div>
 
-<div class="crt-panel status-strip" id="status-strip"></div>
+<div class="gauge-grid status-grid" id="status-strip"></div>
 
 <div class="section-label">POOLS</div>
 <div class="pool-grid" id="pool-grid">
@@ -208,22 +208,13 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 <div class="section-label">TOTAL CAPITAL — TREND</div>
 <div class="crt-panel trend-card">
 <div class="trend-header">
-<div>
-<div class="trend-title">OPTIONS + MERGER + CRYPTO + YIELD, COMBINED</div>
-<div><span class="trend-total" id="trend-total">$—</span><span class="trend-delta" id="trend-delta"></span></div>
-</div>
+<div class="trend-title">OPTIONS + MERGER + CRYPTO + YIELD, COMBINED <span class="trend-delta" id="trend-delta"></span></div>
 </div>
 <div class="trend-chart-wrap">
 <svg id="trend-svg" viewBox="0 0 300 140" preserveAspectRatio="none" width="100%" height="100%"></svg>
 </div>
 <div class="trend-axis"><span id="trend-start-date">—</span><span id="trend-end-date">—</span></div>
 <div class="trend-caption">history logs automatically every time any pool updates — sparse today, fills in over coming days</div>
-</div>
-
-<div class="section-label">CAPITAL ALLOCATION</div>
-<div class="crt-panel capital-card">
-<div class="capital-total">COMBINED VALUE<span class="num" id="capital-total-val">—</span></div>
-<div id="capital-bars"></div>
 </div>
 
 <div class="section-label">TOP STEP — TREND</div>
@@ -241,8 +232,9 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 <div class="trend-caption">logs a new point each time TopStep data is refreshed — screenshot-driven, not a live feed, so this won't move on its own between check-ins</div>
 </div>
 
-<div class="section-label">OPEN POSITIONS — OPTIONS</div>
+<div class="section-label">OPEN POSITIONS &amp; SECTOR EXPOSURE</div>
 <div class="crt-panel" style="padding:14px 16px;">
+<div class="subhead first">OPTIONS</div>
 <div class="pos-flags" id="pos-flags"></div>
 <div class="pos-table">
 <div class="pos-row header">
@@ -250,10 +242,8 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 </div>
 <div id="pos-rows"></div>
 </div>
-</div>
 
-<div class="section-label">OPEN POSITIONS — MERGER ARBITRAGE</div>
-<div class="crt-panel" style="padding:14px 16px;">
+<div class="subhead">MERGER ARBITRAGE</div>
 <div class="mpos-flags" id="mpos-flags"></div>
 <div class="mpos-table">
 <div class="mpos-row header">
@@ -261,22 +251,19 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 </div>
 <div id="mpos-rows"></div>
 </div>
-</div>
 
-<div class="section-label">SECTOR CONCENTRATION — OPTIONS (PILLAR VI)</div>
-<div class="crt-panel" style="padding:16px 18px;">
+<div class="subhead">SECTOR CONCENTRATION — OPTIONS (PILLAR VI)</div>
 <div class="sector-flags" id="sector-flags"></div>
 <div id="sector-bars"></div>
 </div>
 
-<div class="section-label">WEEKLY WATCH — EARNINGS &amp; CATALYSTS</div>
+<div class="section-label">WEEKLY WATCH &amp; NEWS</div>
 <div class="crt-panel watch-card">
+<div class="subhead first">EARNINGS &amp; CATALYSTS</div>
 <div class="watch-row header"><div>DATE</div><div>TICKER</div><div>TYPE</div><div>NOTE</div></div>
 <div id="watch-list"></div>
-</div>
 
-<div class="section-label">MARKET NEWS — WATCHLIST</div>
-<div class="crt-panel news-card">
+<div class="subhead">MARKET NEWS</div>
 <div id="news-list"></div>
 </div>
 
@@ -469,16 +456,21 @@ const wrap = document.getElementById("status-strip");
 wrap.innerHTML = ALL_POOLS.map(pool => {
 const row = snapshots.find(s => s.pool === pool);
 if (!row) {
-return `<div class="status-item"><span class="pool-name">${pool.toUpperCase()}</span><span class="dot warn"></span><span class="status-age warn">no data</span></div>`;
+return `
+<div class="crt-panel gauge-card">
+<div class="gauge-label">${pool.toUpperCase()}</div>
+<div class="gauge-num warn">NO DATA</div>
+</div>
+`;
 }
 const age = minutesAgo(row.updated_at);
 const stale = age > STALE_AFTER_MIN;
 const ageText = age < 60 ? `${age.toFixed(0)}m ago` : `${(age / 60).toFixed(1)}h ago`;
 return `
-<div class="status-item">
-<span class="pool-name">${pool.toUpperCase()}</span>
-<span class="dot ${stale ? "warn" : "ok"}"></span>
-<span class="status-age ${stale ? "warn" : ""}">${stale ? "STALE · " : ""}${ageText}</span>
+<div class="crt-panel gauge-card">
+<div class="gauge-label">${pool.toUpperCase()}</div>
+<div class="gauge-num ${stale ? "warn" : ""}">${stale ? "STALE" : "LIVE"}</div>
+<div class="gauge-sub">${ageText}</div>
 </div>
 `;
 }).join("");
@@ -486,14 +478,12 @@ return `
 
 function renderTrend(rows) {
 const svg = document.getElementById("trend-svg");
-const totalEl = document.getElementById("trend-total");
 const deltaEl = document.getElementById("trend-delta");
 const startEl = document.getElementById("trend-start-date");
 const endEl = document.getElementById("trend-end-date");
 
 if (!rows || rows.length === 0) {
 svg.innerHTML = "";
-totalEl.textContent = "$—";
 deltaEl.textContent = "";
 startEl.textContent = "no history yet";
 endEl.textContent = "";
@@ -506,7 +496,6 @@ const first = values[0];
 const delta = last - first;
 const deltaPct = first > 0 ? (delta / first) * 100 : 0;
 
-totalEl.textContent = money(last);
 if (rows.length > 1) {
 deltaEl.className = "trend-delta " + (delta >= 0 ? "up" : "down");
 deltaEl.textContent = `${delta >= 0 ? "▲" : "▼"} ${money(Math.abs(delta))} (${deltaPct.toFixed(1)}%) since first log`;
@@ -752,7 +741,6 @@ const row = snapshots.find(s => s.pool === pool);
 return { pool, value: poolValue(row) };
 });
 const total = values.reduce((s, v) => s + v.value, 0);
-document.getElementById("capital-total-val").textContent = money(total);
 
 const bars = document.getElementById("capital-bars");
 bars.innerHTML = values.map(v => {
