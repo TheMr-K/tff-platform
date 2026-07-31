@@ -217,6 +217,21 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 <div id="capital-bars"></div>
 </div>
 
+<div class="section-label">TOP STEP — TREND</div>
+<div class="crt-panel trend-card">
+<div class="trend-header">
+<div>
+<div class="trend-title">TOPSTEP COMBINE BALANCE — SIM ACCOUNT, NOT COUNTED IN COMBINED CAPITAL</div>
+<div><span class="trend-total" id="topstep-trend-total" style="color:var(--pink);text-shadow:0 0 8px var(--pink-glow);">$—</span><span class="trend-delta" id="topstep-trend-delta"></span></div>
+</div>
+</div>
+<div class="trend-chart-wrap">
+<svg id="topstep-trend-svg" viewBox="0 0 300 140" preserveAspectRatio="none" width="100%" height="100%"></svg>
+</div>
+<div class="trend-axis"><span id="topstep-trend-start-date">—</span><span id="topstep-trend-end-date">—</span></div>
+<div class="trend-caption">logs a new point each time TopStep data is refreshed — screenshot-driven, not a live feed, so this won't move on its own between check-ins</div>
+</div>
+
 <div class="section-label">OPEN POSITIONS — OPTIONS</div>
 <div class="crt-panel" style="padding:14px 16px;">
 <div class="pos-flags" id="pos-flags"></div>
@@ -523,6 +538,67 @@ svg.innerHTML = `
 </defs>
 <polygon points="${areaStr}" fill="url(#trendFill)"/>
 <polyline points="${lineStr}" fill="none" stroke="var(--green)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+`;
+
+const fmt = iso => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+startEl.textContent = fmt(rows[0].recorded_at);
+endEl.textContent = fmt(rows[rows.length - 1].recorded_at);
+}
+
+function renderTopstepTrend(rows) {
+const svg = document.getElementById("topstep-trend-svg");
+const totalEl = document.getElementById("topstep-trend-total");
+const deltaEl = document.getElementById("topstep-trend-delta");
+const startEl = document.getElementById("topstep-trend-start-date");
+const endEl = document.getElementById("topstep-trend-end-date");
+
+if (!rows || rows.length === 0) {
+svg.innerHTML = "";
+totalEl.textContent = "$—";
+deltaEl.textContent = "";
+startEl.textContent = "no history yet";
+endEl.textContent = "";
+return;
+}
+
+const values = rows.map(r => r.balance);
+const last = values[values.length - 1];
+const first = values[0];
+const delta = last - first;
+const deltaPct = first > 0 ? (delta / first) * 100 : 0;
+
+totalEl.textContent = money(last);
+if (rows.length > 1) {
+deltaEl.className = "trend-delta " + (delta >= 0 ? "up" : "down");
+deltaEl.textContent = `${delta >= 0 ? "▲" : "▼"} ${money(Math.abs(delta))} (${deltaPct.toFixed(1)}%) since first log`;
+} else {
+deltaEl.textContent = "";
+}
+
+let min = Math.min(...values);
+let max = Math.max(...values);
+if (min === max) { min -= 1; max += 1; }
+const pad = (max - min) * 0.1;
+min -= pad; max += pad;
+
+const w = 300, h = 140;
+const points = rows.map((r, i) => {
+const x = rows.length > 1 ? (i / (rows.length - 1)) * w : w / 2;
+const y = h - ((r.balance - min) / (max - min)) * h;
+return [x, y];
+});
+const lineStr = points.map(p => p.join(",")).join(" ");
+const areaStr = `0,${h} ${lineStr} ${w},${h}`;
+
+svg.innerHTML = `
+<defs>
+<linearGradient id="topstepTrendFill" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="var(--pink)" stop-opacity="0.35"/>
+<stop offset="100%" stop-color="var(--pink)" stop-opacity="0"/>
+</linearGradient>
+</defs>
+<polygon points="${areaStr}" fill="url(#topstepTrendFill)"/>
+<polyline points="${lineStr}" fill="none" stroke="var(--pink)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
 `;
 
 const fmt = iso => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -871,18 +947,20 @@ wrap.innerHTML = deduped
 
 async function refresh() {
 try {
-const [snapshots, actions, watch, history, news] = await Promise.all([
+const [snapshots, actions, watch, history, news, topstepHistory] = await Promise.all([
 fetchTable("pool_snapshots"),
 fetchTable("priority_actions?order=created_at.desc&limit=20"),
 fetchTable("weekly_watch?order=event_date.asc"),
 fetchTable("capital_history?order=recorded_at.asc&limit=500"),
-fetchTable("market_news?order=published_at.desc&limit=10")
+fetchTable("market_news?order=published_at.desc&limit=10"),
+fetchTable("topstep_history?order=recorded_at.asc&limit=500")
 ]);
 
 checkAlerts(snapshots);
 renderMaster(snapshots);
 renderStatusStrip(snapshots);
 renderTrend(history);
+renderTopstepTrend(topstepHistory);
 renderGauges(snapshots, watch);
 renderPools(snapshots);
 renderCapital(snapshots);
