@@ -11,6 +11,7 @@
 --amber:#ffb020; --amber-glow:rgba(255,176,32,0.55);
 --blue:#4bd6ff;
 --violet:#b47aff; --violet-glow:rgba(180,122,255,0.5);
+--pink:#ff5fc4; --pink-glow:rgba(255,95,196,0.5);
 --red:#ff4b4b; --text-dim:#8a7a4a;
 --grid-line:rgba(255,176,32,0.07);
 }
@@ -80,12 +81,14 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 .pool-card.merger h2{color:var(--violet);}
 .pool-card.crypto h2{color:var(--amber);}
 .pool-card.yield h2{color:var(--blue);}
+.pool-card.topstep h2{color:var(--pink);}
 .pool-val{font-size:26px;font-weight:600;text-shadow:0 0 8px currentColor;}
 .stale{color:var(--red)!important;}
 .fresh{color:var(--green);}
 .pool-card.merger .fresh{color:var(--violet);}
 .pool-card.crypto .fresh{color:var(--amber);}
 .pool-card.yield .fresh{color:var(--blue);}
+.pool-card.topstep .fresh{color:var(--pink);}
 .pool-updated{font-size:10px;color:var(--text-dim);margin:6px 0 10px;}
 .pool-line{font-size:11px;color:#e8d9b8;margin:4px 0;line-height:1.5;}
 .pool-line .k{color:var(--text-dim);margin-right:6px;}
@@ -289,6 +292,7 @@ text-shadow:0 0 8px var(--amber-glow),0 0 22px var(--amber-glow);margin:4px 0 16
 <div class="crt-panel pool-card merger"><h2>MERGER ARB</h2><div class="pool-val">—</div></div>
 <div class="crt-panel pool-card crypto"><h2>CRYPTO</h2><div class="pool-val">—</div></div>
 <div class="crt-panel pool-card yield"><h2>YIELD</h2><div class="pool-val">—</div></div>
+<div class="crt-panel pool-card topstep"><h2>TOPSTEP</h2><div class="pool-val">—</div></div>
 </div>
 
 </div>
@@ -310,7 +314,12 @@ AWK: "Water", XYL: "Water", WTRG: "Water", AWR: "Water", MSEX: "Water", YORW: "W
 NEE: "Utilities"
 };
 const MAX_OPEN_POSITIONS = 4; // Pillar III cap
-const POOL_ORDER = ["options", "merger", "crypto", "yield"];
+// Pools counted toward "Combined Capital" (master total, LED bar, capital allocation) —
+// real personal capital only. TopStep is a prop-firm sim balance, not owned capital,
+// so it's tracked separately and excluded from this list on purpose.
+const CAPITAL_POOLS = ["options", "merger", "crypto", "yield"];
+// All pools shown in the status strip and individual pool cards, capital or not.
+const ALL_POOLS = ["options", "merger", "crypto", "yield", "topstep"];
 
 const notifState = { optionsMarks: {}, cryptoPrices: {}, flags: new Set() };
 
@@ -416,7 +425,7 @@ return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function renderMaster(snapshots) {
-const values = POOL_ORDER.map(pool => {
+const values = CAPITAL_POOLS.map(pool => {
 const row = snapshots.find(s => s.pool === pool);
 return { pool, value: poolValue(row) };
 });
@@ -442,7 +451,7 @@ bar.appendChild(seg);
 
 function renderStatusStrip(snapshots) {
 const wrap = document.getElementById("status-strip");
-wrap.innerHTML = POOL_ORDER.map(pool => {
+wrap.innerHTML = ALL_POOLS.map(pool => {
 const row = snapshots.find(s => s.pool === pool);
 if (!row) {
 return `<div class="status-item"><span class="pool-name">${pool.toUpperCase()}</span><span class="dot warn"></span><span class="status-age warn">no data</span></div>`;
@@ -615,10 +624,23 @@ if (data.status) return `<div class="pool-line">Not yet funded — awaiting firs
 return `<div class="pool-line">Yield data available</div>`;
 }
 
+function topstepSummary(data) {
+const target = data.profit_target;
+const pnl = data.realized_pnl ?? 0;
+const progressPct = typeof target === "number" && target > 0 ? (pnl / target) * 100 : null;
+let html = `<div class="pool-line"><span class="k">Balance:</span>${typeof data.current_balance === "number" ? money(data.current_balance) : "—"}</div>`;
+html += `<div class="pool-line"><span class="k">Progress:</span>${money(pnl)} of ${typeof target === "number" ? money(target) : "—"} target${progressPct != null ? ` (${progressPct.toFixed(1)}%)` : ""}</div>`;
+html += `<div class="pool-line"><span class="k">MLL cushion:</span>${typeof data.mll_cushion === "number" ? money(data.mll_cushion) : "—"}${data.mll_floor_trailing ? " (trailing, EOD)" : ""}</div>`;
+if (typeof data.best_day_pct_of_total === "number") {
+html += `<div class="pool-line"><span class="k">Best day % of profit:</span>${data.best_day_pct_of_total}% (keep ≤${data.consistency_target_pct ?? 50}%)</div>`;
+}
+return html;
+}
+
 function renderPools(snapshots) {
 const grid = document.getElementById("pool-grid");
 grid.innerHTML = "";
-for (const pool of POOL_ORDER) {
+for (const pool of ALL_POOLS) {
 const row = snapshots.find(s => s.pool === pool);
 const card = document.createElement("div");
 card.className = `crt-panel pool-card ${pool}`;
@@ -635,6 +657,7 @@ let summary = "";
 if (pool === "options") summary = optionsSummary(row.data);
 else if (pool === "merger") summary = mergerSummary(row.data);
 else if (pool === "crypto") summary = cryptoSummary(row.data);
+else if (pool === "topstep") summary = topstepSummary(row.data);
 else summary = yieldSummary(row.data);
 
 card.innerHTML = `
@@ -648,7 +671,7 @@ grid.appendChild(card);
 }
 
 function renderCapital(snapshots) {
-const values = POOL_ORDER.map(pool => {
+const values = CAPITAL_POOLS.map(pool => {
 const row = snapshots.find(s => s.pool === pool);
 return { pool, value: poolValue(row) };
 });
